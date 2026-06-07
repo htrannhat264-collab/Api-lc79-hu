@@ -4,11 +4,7 @@ const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// ==========================================
-// API LC79 - PUBLIC (KHÔNG CẦN TOKEN)
-// ==========================================
-const URL_TX = "https://wtx.tele68.com/v1/tx/sessions";
+const URL_TRUYEN_THONG = "https://wtx.tele68.com/v1/tx/sessions";
 const URL_MD5 = "https://wtxmd52.tele68.com/v1/txmd5/sessions";
 
 const HEADERS = {
@@ -21,18 +17,13 @@ const HEADERS = {
 
 const http = axios.create({ timeout: 10000, headers: HEADERS });
 
-// ==========================================
-// LƯU TRỮ DỮ LIỆU
-// ==========================================
-let historyTX = [];
-let historyMD5 = [];
-let predictionsTX = [];
-let predictionsMD5 = [];
+let historyNormal = [];
+let historyMd5 = [];
+let predictionsNormal = [];
+let predictionsMd5 = [];
 
-// ==========================================
 // ========== MARKOV CHAIN SIÊU CẤP ==========
-// ==========================================
-class MarkovXucXac {
+class MarkovXucXac123 {
     constructor(bac = 3) {
         this.bac = Math.min(4, Math.max(1, bac));
         this.transitions = new Map();
@@ -49,7 +40,7 @@ class MarkovXucXac {
     }
 
     themDuLieu(daySo) {
-        const filtered = daySo.map(x => MarkovXucXac.chuyenLoai(x));
+        const filtered = daySo.map(x => MarkovXucXac123.chuyenLoai(x));
         this.history.push(...filtered);
         if (this.history.length > this.maxHistory) {
             this.history = this.history.slice(-this.maxHistory);
@@ -145,9 +136,7 @@ class MarkovXucXac {
     }
 
     ghiNhanKetQua(duDoan, thucTe) {
-        if (duDoan === thucTe) {
-            this.correctPredictions++;
-        }
+        if (duDoan === thucTe) this.correctPredictions++;
         this.totalPredictions++;
     }
 
@@ -157,10 +146,9 @@ class MarkovXucXac {
                 prediction: "TÀI",
                 confidenceTai: 55,
                 confidenceXiu: 45,
-                reason: `Chưa đủ mẫu (${this.history.length}/8)`,
+                reason: `Cần thêm ${8 - this.history.length} phiên`,
                 duDoanSo: 3,
-                doOnDinh: "THẤP",
-                laPhienThuHai: false
+                doOnDinh: "THẤP"
             };
         }
 
@@ -200,15 +188,11 @@ class MarkovXucXac {
             else pattern = "⚖️ CẦU BÌNH THƯỜNG";
         }
         
-        let phanTichThem = "";
-        if (recentDem[duDoanSo] >= 5) phanTichThem = " | ĐANG THỐNG TRỊ";
-        else if (recentDem[duDoanSo] === 0) phanTichThem = " | SẮP VỀ";
-        
         return {
             prediction: prediction,
             confidenceTai: confidenceTai,
             confidenceXiu: confidenceXiu,
-            reason: `🎲 Markov bậc ${this.bac} | ${this.history.length} phiên | Pattern: ${pattern}${phanTichThem}`,
+            reason: `🎲 Markov bậc ${this.bac} | ${this.history.length} phiên | Pattern: ${pattern}`,
             duDoanSo: duDoanSo,
             pattern: pattern,
             doOnDinh: confidence > 75 ? "CAO" : (confidence > 55 ? "TRUNG BÌNH" : "THẤP")
@@ -216,42 +200,13 @@ class MarkovXucXac {
     }
 }
 
-// ==========================================
-// PHÂN TÍCH LỆCH PHA (THỐNG KÊ)
-// ==========================================
-function phanTichLechPha(history) {
-    if (!history || history.length < 15) return null;
-    
-    const last15 = history.slice(0, 15);
-    const tai15 = last15.filter(h => h.resultTruyenThong === "TAI").length;
-    const xiu15 = 15 - tai15;
-    
-    if (tai15 >= 12) {
-        return { prediction: "XỈU", confidence: 88, reason: `📊 LỆCH TÀI CỰC ĐẠI (${tai15}T-${xiu15}X)`, doTinCayTai: 25, doTinCayXiu: 88 };
-    }
-    if (xiu15 >= 12) {
-        return { prediction: "TÀI", confidence: 88, reason: `📊 LỆCH XỈU CỰC ĐẠI (${tai15}T-${xiu15}X)`, doTinCayTai: 88, doTinCayXiu: 25 };
-    }
-    if (tai15 >= 10) {
-        return { prediction: "XỈU", confidence: 82, reason: `📊 LỆCH TÀI (${tai15}T-${xiu15}X)`, doTinCayTai: 30, doTinCayXiu: 82 };
-    }
-    if (xiu15 >= 10) {
-        return { prediction: "TÀI", confidence: 82, reason: `📊 LỆCH XỈU (${tai15}T-${xiu15}X)`, doTinCayTai: 82, doTinCayXiu: 30 };
-    }
-    
-    return null;
-}
-
-// ==========================================
-// PHÂN TÍCH CẦU ĐẶC BIỆT
-// ==========================================
+// ========== PHÂN TÍCH CẦU ĐẶC BIỆT ==========
 function phanTichCauDacBiet(history) {
-    if (!history || history.length < 10) return null;
+    if (!history || history.length < 8) return null;
     
     const results = history.slice(0, 10).map(h => h.resultTruyenThong);
-    const resultsStr = results.join('');
     
-    // Bệt 4+
+    // Bệt
     let bet = 1;
     for (let i = 1; i < results.length; i++) {
         if (results[i] === results[0]) bet++;
@@ -260,147 +215,129 @@ function phanTichCauDacBiet(history) {
     
     if (bet >= 6) {
         const duDoan = results[0] === "TAI" ? "XỈU" : "TÀI";
-        return { prediction: duDoan, confidence: 96, reason: `🔴 BỆT ${bet} PHIÊN - CHẮC CHẮN ĐẢO`, doTinCayTai: duDoan === "TÀI" ? 96 : 4, doTinCayXiu: duDoan === "XỈU" ? 96 : 4 };
+        return { prediction: duDoan, confidence: 96, reason: `🔴 BỆT ${bet} PHIÊN - CHẮC CHẮN ĐẢO` };
     }
     if (bet === 5) {
         const duDoan = results[0] === "TAI" ? "XỈU" : "TÀI";
-        return { prediction: duDoan, confidence: 92, reason: `🔴 BỆT 5 PHIÊN - ĐẢO RẤT CHẮC`, doTinCayTai: duDoan === "TÀI" ? 92 : 8, doTinCayXiu: duDoan === "XỈU" ? 92 : 8 };
+        return { prediction: duDoan, confidence: 92, reason: `🔴 BỆT 5 PHIÊN - ĐẢO RẤT CHẮC` };
     }
     if (bet === 4) {
         const duDoan = results[0] === "TAI" ? "XỈU" : "TÀI";
-        return { prediction: duDoan, confidence: 86, reason: `🟡 BỆT 4 PHIÊN - ĐẢO`, doTinCayTai: duDoan === "TÀI" ? 86 : 14, doTinCayXiu: duDoan === "XỈU" ? 86 : 14 };
+        return { prediction: duDoan, confidence: 86, reason: `🟡 BỆT 4 PHIÊN - ĐẢO` };
     }
     
     // Cầu 2-2
     if (results.length >= 8) {
         const cau22 = (results[0] === results[1] && results[2] === results[3] && results[4] === results[5] && results[6] === results[7] &&
-                       results[0] !== results[2] && results[2] !== results[4] && results[4] !== results[6]);
+                       results[0] !== results[2] && results[2] !== results[4]);
         if (cau22) {
             const duDoan = results[6] === "TAI" ? "XỈU" : "TÀI";
-            return { prediction: duDoan, confidence: 90, reason: `🟢 CẦU 2-2 (4 CẶP)`, doTinCayTai: duDoan === "TÀI" ? 90 : 10, doTinCayXiu: duDoan === "XỈU" ? 90 : 10 };
+            return { prediction: duDoan, confidence: 90, reason: `🟢 CẦU 2-2 (4 CẶP)` };
         }
-    }
-    
-    // Cầu 1-1 dài
-    let cau11 = true;
-    for (let i = 1; i < Math.min(8, results.length); i++) {
-        if (results[i] === results[i-1]) { cau11 = false; break; }
-    }
-    if (cau11 && results.length >= 8) {
-        const duDoan = results[0] === "TAI" ? "XỈU" : "TÀI";
-        return { prediction: duDoan, confidence: 88, reason: `🔵 CẦU 1-1 DÀI (${results.length} PHIÊN)`, doTinCayTai: duDoan === "TÀI" ? 88 : 12, doTinCayXiu: duDoan === "XỈU" ? 88 : 12 };
     }
     
     return null;
 }
 
-// ==========================================
-// TỔNG HỢP DỰ ĐOÁN - SIÊU MẠNH
-// ==========================================
+// ========== PHÂN TÍCH LỆCH PHA ==========
+function phanTichLechPha(history) {
+    if (!history || history.length < 15) return null;
+    
+    const last15 = history.slice(0, 15);
+    const tai15 = last15.filter(h => h.resultTruyenThong === "TAI").length;
+    
+    if (tai15 >= 12) return { prediction: "XỈU", confidence: 88, reason: `📊 LỆCH TÀI CỰC ĐẠI (${tai15}T-${15-tai15}X)` };
+    if (tai15 <= 3) return { prediction: "TÀI", confidence: 88, reason: `📊 LỆCH XỈU CỰC ĐẠI (${tai15}T-${15-tai15}X)` };
+    
+    return null;
+}
+
+// ========== TỔNG HỢP DỰ ĐOÁN ==========
 function analyzeTrend(history) {
     if (!history || history.length === 0) {
-        return {
-            prediction: "TÀI",
-            confidenceTai: 50,
-            confidenceXiu: 50,
-            reason: "Chưa có dữ liệu",
-            duDoanSo: 3,
-            doOnDinh: "THẤP"
-        };
+        return { prediction: "TÀI", confidenceTai: 50, confidenceXiu: 50, reason: "Chưa có dữ liệu", duDoanSo: 3 };
     }
     
-    // 1. Ưu tiên cầu đặc biệt
+    // 1. Cầu đặc biệt (ưu tiên cao nhất)
     const cauDacBiet = phanTichCauDacBiet(history);
     if (cauDacBiet && cauDacBiet.confidence >= 86) {
         return {
             prediction: cauDacBiet.prediction,
-            confidenceTai: cauDacBiet.doTinCayTai || (cauDacBiet.prediction === "TÀI" ? cauDacBiet.confidence : 100 - cauDacBiet.confidence),
-            confidenceXiu: cauDacBiet.doTinCayXiu || (cauDacBiet.prediction === "XỈU" ? cauDacBiet.confidence : 100 - cauDacBiet.confidence),
+            confidenceTai: cauDacBiet.prediction === "TÀI" ? cauDacBiet.confidence : 100 - cauDacBiet.confidence,
+            confidenceXiu: cauDacBiet.prediction === "XỈU" ? cauDacBiet.confidence : 100 - cauDacBiet.confidence,
             reason: cauDacBiet.reason,
             duDoanSo: cauDacBiet.prediction === "TÀI" ? 3 : 2,
             doOnDinh: "CAO"
         };
     }
     
-    // 2. Lệch pha cực đại
+    // 2. Lệch pha
     const lechPha = phanTichLechPha(history);
-    if (lechPha && lechPha.confidence >= 82) {
+    if (lechPha && lechPha.confidence >= 85) {
         return {
             prediction: lechPha.prediction,
-            confidenceTai: lechPha.doTinCayTai || (lechPha.prediction === "TÀI" ? lechPha.confidence : 100 - lechPha.confidence),
-            confidenceXiu: lechPha.doTinCayXiu || (lechPha.prediction === "XỈU" ? lechPha.confidence : 100 - lechPha.confidence),
+            confidenceTai: lechPha.prediction === "TÀI" ? lechPha.confidence : 100 - lechPha.confidence,
+            confidenceXiu: lechPha.prediction === "XỈU" ? lechPha.confidence : 100 - lechPha.confidence,
             reason: lechPha.reason,
             duDoanSo: lechPha.prediction === "TÀI" ? 3 : 2,
             doOnDinh: "CAO"
         };
     }
     
-    // 3. Markov Chain từ xúc xắc
+    // 3. Markov Chain
     const dice123 = [];
     for (let i = 0; i < Math.min(history.length, 50); i++) {
         const item = history[i];
         if (item && item.dices && item.dices.length === 3) {
-            for (let d of item.dices) {
-                dice123.push(MarkovXucXac.chuyenLoai(d));
-            }
+            for (let d of item.dices) dice123.push(MarkovXucXac123.chuyenLoai(d));
         }
     }
     
     if (dice123.length >= 15) {
-        const markov = new MarkovXucXac(3);
+        const markov = new MarkovXucXac123(3);
         markov.themDuLieu(dice123);
         
-        // Tự động ghi nhận kết quả nếu có
-        if (history.length >= 2) {
+        // Ghi nhận kết quả
+        if (history.length >= 2 && predictionsNormal.length > 0) {
             const lastResult = history[0]?.resultTruyenThong === "TAI" ? "TÀI" : "XỈU";
-            const lastPrediction = predictionsTX[predictionsTX.length - 1]?.du_doan;
-            if (lastPrediction) {
-                markov.ghiNhanKetQua(lastPrediction === "TÀI" ? 3 : 2, lastResult === "TÀI" ? 3 : 2);
-            }
+            const lastPred = predictionsNormal[predictionsNormal.length - 1]?.du_doan;
+            if (lastPred) markov.ghiNhanKetQua(lastPred === "TÀI" ? 3 : 2, lastResult === "TÀI" ? 3 : 2);
         }
         
-        const markovResult = markov.phanTich();
-        return markovResult;
+        return markov.phanTich();
     }
     
-    // 4. Fallback: theo xu hướng 10 phiên
+    // 4. Fallback: theo tần suất 10 phiên
     const last10 = history.slice(0, 10);
     const tai10 = last10.filter(h => h.resultTruyenThong === "TAI").length;
     if (tai10 >= 7) {
-        return {
-            prediction: "XỈU",
-            confidenceTai: 30,
-            confidenceXiu: 82,
-            reason: `📊 10 phiên: ${tai10}T-${10-tai10}X`,
-            duDoanSo: 2,
-            doOnDinh: "TRUNG BÌNH"
-        };
+        return { prediction: "XỈU", confidenceTai: 30, confidenceXiu: 82, reason: `📊 10P: ${tai10}T-${10-tai10}X`, duDoanSo: 2, doOnDinh: "TRUNG BÌNH" };
     }
     if (tai10 <= 3) {
-        return {
-            prediction: "TÀI",
-            confidenceTai: 82,
-            confidenceXiu: 30,
-            reason: `📊 10 phiên: ${tai10}T-${10-tai10}X`,
-            duDoanSo: 3,
-            doOnDinh: "TRUNG BÌNH"
-        };
+        return { prediction: "TÀI", confidenceTai: 82, confidenceXiu: 30, reason: `📊 10P: ${tai10}T-${10-tai10}X`, duDoanSo: 3, doOnDinh: "TRUNG BÌNH" };
     }
     
-    // 5. Fallback cuối
-    return {
-        prediction: "TÀI",
-        confidenceTai: 60,
-        confidenceXiu: 55,
-        reason: "⚖️ Dự đoán mặc định",
-        duDoanSo: 3,
-        doOnDinh: "THẤP"
-    };
+    return { prediction: "TÀI", confidenceTai: 60, confidenceXiu: 55, reason: "⚖️ Dự đoán cơ bản", duDoanSo: 3, doOnDinh: "THẤP" };
 }
 
-// ==========================================
-// CẬP NHẬT DỰ ĐOÁN
-// ==========================================
+// ========== CÁC HÀM HỖ TRỢ ==========
+function generateSeed(history, count = 8) {
+    if (history.length < count) return null;
+    const seedString = history.slice(0, count).map(item => item.dices ? item.dices.join('') : '').join('');
+    if (!seedString) return null;
+    return crypto.createHash('md5').update(seedString).digest('hex');
+}
+
+function randomDice(seed) {
+    if (!seed) return [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
+    const hash = crypto.createHash('md5').update(seed).digest('hex');
+    return [
+        parseInt(hash.substring(0, 2), 16) % 6 + 1,
+        parseInt(hash.substring(2, 4), 16) % 6 + 1,
+        parseInt(hash.substring(4, 6), 16) % 6 + 1
+    ];
+}
+
 function updatePrediction(storage, history) {
     if (history.length < 2) return;
     const latest = history[0];
@@ -415,8 +352,6 @@ function updatePrediction(storage, history) {
         danh_gia: null,
         chi_tiet: ai
     });
-    
-    // Giới hạn lưu trữ
     if (storage.length > 200) storage.shift();
 }
 
@@ -427,7 +362,7 @@ function evaluate(storage, history) {
         if (!real) return;
         const result = real.resultTruyenThong === "TAI" ? "TÀI" : "XỈU";
         p.ket_qua = result;
-        p.danh_gia = (p.du_doan === result) ? "✅ THẮNG" : "❌ THUA";
+        p.danh_gia = p.du_doan === result ? "✅ THẮNG" : "❌ THUA";
     });
 }
 
@@ -435,45 +370,20 @@ function stats(storage) {
     const total = storage.length;
     const win = storage.filter(i => i.danh_gia === "✅ THẮNG").length;
     const lose = storage.filter(i => i.danh_gia === "❌ THUA").length;
-    const pending = storage.filter(i => !i.danh_gia).length;
-    const rate = total === 0 ? 0 : ((win / (win + lose)) * 100);
+    const rate = total === 0 ? 0 : (win / (win + lose)) * 100;
     return {
         tong_du_doan: total,
         tong_thang: win,
         tong_thua: lose,
-        dang_cho: pending,
         ti_le_chinh_xac: `${rate.toFixed(2)}%`,
-        lich_su_gan_day: storage.slice(-15).reverse()
+        lich_su: storage.slice(-15).reverse()
     };
 }
 
-// ==========================================
-// LẤY DỮ LIỆU TỪ API
-// ==========================================
-async function fetchData(url) {
-    try {
-        const response = await http.get(url);
-        if (response.data && response.data.list && response.data.list.length > 0) {
-            return response.data.list.map(item => ({
-                id: item.id,
-                resultTruyenThong: item.resultTruyenThong,
-                dices: item.dices,
-                point: item.point
-            }));
-        }
-        return null;
-    } catch (error) {
-        console.error(`Fetch lỗi ${url}:`, error.message);
-        return null;
-    }
-}
-
-// ==========================================
-// FORMAT OUTPUT ĐẸP
-// ==========================================
-function formatData(list, history, type, statsData) {
+function formatData(raw, history, type) {
+    const list = raw?.list;
     if (!list || list.length === 0) {
-        return { error: "Không có dữ liệu", note: "API có thể cần token hoặc bị chặn" };
+        return { error: "Không có dữ liệu", note: "API đang hoạt động bình thường, thử lại sau" };
     }
     
     const data = list[0];
@@ -487,28 +397,11 @@ function formatData(list, history, type, statsData) {
     }
 
     const ketQua = data.resultTruyenThong === "TAI" ? "TÀI" : "XỈU";
-    const duDoanChuan = ai.prediction;
-    const doTinCay = duDoanChuan === "TÀI" ? ai.confidenceTai : ai.confidenceXiu;
-    
-    // Dự đoán phiên 2 (nếu có)
-    let duDoan2 = null;
-    if (list.length >= 2) {
-        const fakeHistory = [{ resultTruyenThong: duDoanChuan === "TÀI" ? "TAI" : "XIU", dices: [4,4,4] }, ...list];
-        const ai2 = analyzeTrend(fakeHistory);
-        duDoan2 = {
-            phien: data.id + 2,
-            du_doan: ai2.prediction,
-            do_tin_cay: ai2.prediction === "TÀI" ? ai2.confidenceTai : ai2.confidenceXiu,
-            ly_do: ai2.reason
-        };
-    }
-    
-    const coNenCuoc = doTinCay >= 75;
-    
+    const coNenCuoc = ai.prediction === "TÀI" ? ai.confidenceTai >= 75 : ai.confidenceXiu >= 75;
+
     return {
         success: true,
         game: type,
-        timestamp: new Date().toISOString(),
         current: {
             phien: data.id,
             xuc_xac: `${xuc_xac[0]} - ${xuc_xac[1]} - ${xuc_xac[2]}`,
@@ -517,74 +410,70 @@ function formatData(list, history, type, statsData) {
         },
         du_doan: {
             phien_tiep: data.id + 1,
-            du_doan: duDoanChuan,
-            do_tin_cay: `${doTinCay}%`,
+            du_doan: ai.prediction,
+            do_tin_cay: `${ai.prediction === "TÀI" ? ai.confidenceTai : ai.confidenceXiu}%`,
             ty_le_tai: `${ai.confidenceTai}%`,
             ty_le_xiu: `${ai.confidenceXiu}%`,
             co_nen_cuoc: coNenCuoc ? "✅✅✅ NÊN CƯỢC" : "⏸️ BỎ QUA",
             ly_do: ai.reason,
-            pattern: ai.pattern || "BÌNH THƯỜNG",
-            do_on_dinh: ai.doOnDinh
+            do_on_dinh: ai.doOnDinh || "TRUNG BÌNH"
         },
-        du_doan_phien_2: duDoan2,
-        thong_ke: statsData,
-        lich_su_10_phien: list.slice(0, 10).map(h => h.resultTruyenThong === "TAI" ? "T" : "X").join(' - ')
+        thong_ke: stats(type === "TX" ? predictionsNormal : predictionsMd5),
+        timestamp: new Date().toISOString()
     };
 }
 
-// ==========================================
-// POLLING TỰ ĐỘNG
-// ==========================================
+async function fetchWithRetry(url, retry = 2) {
+    try {
+        const response = await http.get(url);
+        return response;
+    } catch (e) {
+        if (retry > 0) {
+            await new Promise(r => setTimeout(r, 1000));
+            return fetchWithRetry(url, retry - 1);
+        }
+        throw e;
+    }
+}
+
 async function poll() {
     try {
-        const txData = await fetchData(URL_TX);
-        const md5Data = await fetchData(URL_MD5);
+        const [normal, md5] = await Promise.all([
+            fetchWithRetry(URL_TRUYEN_THONG),
+            fetchWithRetry(URL_MD5)
+        ]);
         
-        if (txData) {
-            historyTX = txData;
-            updatePrediction(predictionsTX, historyTX);
-            evaluate(predictionsTX, historyTX);
-            const lastTX = historyTX[0];
-            console.log(`✅ TX: #${lastTX?.id} - ${lastTX?.resultTruyenThong === "TAI" ? "TÀI" : "XỈU"} | Điểm ${lastTX?.point}`);
+        if (normal?.data?.list) {
+            historyNormal = normal.data.list;
+            updatePrediction(predictionsNormal, historyNormal);
+            evaluate(predictionsNormal, historyNormal);
         }
         
-        if (md5Data) {
-            historyMD5 = md5Data;
-            updatePrediction(predictionsMD5, historyMD5);
-            evaluate(predictionsMD5, historyMD5);
-            const lastMD5 = historyMD5[0];
-            console.log(`✅ MD5: #${lastMD5?.id} - ${lastMD5?.resultTruyenThong === "TAI" ? "TÀI" : "XỈU"} | Điểm ${lastMD5?.point}`);
+        if (md5?.data?.list) {
+            historyMd5 = md5.data.list;
+            updatePrediction(predictionsMd5, historyMd5);
+            evaluate(predictionsMd5, historyMd5);
         }
         
-        console.log(`🌊 Poll OK - ${new Date().toLocaleTimeString()} | TX: ${stats(predictionsTX).ti_le_chinh_xac} | MD5: ${stats(predictionsMD5).ti_le_chinh_xac}`);
+        const txRate = stats(predictionsNormal).ti_le_chinh_xac;
+        const md5Rate = stats(predictionsMd5).ti_le_chinh_xac;
+        console.log(`🌊 Poll OK - ${new Date().toLocaleTimeString()} | TX: ${txRate} | MD5: ${md5Rate}`);
     } catch (e) {
         console.log("❌ Poll lỗi:", e.message);
     }
 }
 
-// Chạy poll
-poll();
-setInterval(poll, 8000);
-
-// ==========================================
-// API ENDPOINTS
-// ==========================================
-
+// ========== API ENDPOINTS ==========
 app.get("/", (req, res) => {
     res.json({
         name: "🎲 LC79 - SIÊU THUẬT TOÁN MARKOV TÀI XỈU 🎲",
         author: "@tranhoang2286",
-        version: "4.0 - MẠNH NHẤT",
+        version: "5.0",
         status: "🟢 ONLINE",
-        features: {
-            markov_chain: "Bậc 3 với trọng số động",
-            cau_dac_biet: "Bệt 4+, cầu 2-2, cầu 1-1 dài",
-            thong_ke: "Lệch pha 10-15 phiên",
-            polling: "Tự động cập nhật mỗi 8 giây"
-        },
-        quy_tac: "🎯 CHỈ CƯỢC KHI 'co_nen_cuoc' = '✅✅✅ NÊN CƯỢC' (độ tin cậy >= 75%)",
+        thuat_toan: ["🔴 Bệt 4-5-6+", "🟢 Cầu 2-2", "📊 Lệch pha", "🎲 Markov Chain bậc 3"],
+        quy_tac: "🎯 CHỈ CƯỢC KHI 'co_nen_cuoc' = '✅✅✅ NÊN CƯỢC'",
         endpoints: {
-            "TX (Hũ) - Dự đoán": "GET /taixiu",
+            "TX - Dự đoán": "GET /taixiu",
             "MD5 - Dự đoán": "GET /taixiumd5",
             "TX + MD5": "GET /all",
             "Thống kê TX": "GET /thongke",
@@ -595,63 +484,47 @@ app.get("/", (req, res) => {
 
 app.get("/taixiu", async (req, res) => {
     try {
-        const data = await fetchData(URL_TX);
-        if (!data) {
-            return res.status(500).json({ error: "Không lấy được dữ liệu từ API TX" });
-        }
-        const statsData = stats(predictionsTX);
-        res.json(formatData(data, historyTX, "TX", statsData));
+        const r = await fetchWithRetry(URL_TRUYEN_THONG);
+        res.json(formatData(r.data, historyNormal, "TX"));
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: "Lỗi kết nối API TX", message: err.message });
     }
 });
 
 app.get("/taixiumd5", async (req, res) => {
     try {
-        const data = await fetchData(URL_MD5);
-        if (!data) {
-            return res.status(500).json({ error: "Không lấy được dữ liệu từ API MD5" });
-        }
-        const statsData = stats(predictionsMD5);
-        res.json(formatData(data, historyMD5, "MD5", statsData));
+        const r = await fetchWithRetry(URL_MD5);
+        res.json(formatData(r.data, historyMd5, "MD5"));
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: "Lỗi kết nối API MD5", message: err.message });
     }
 });
 
 app.get("/all", async (req, res) => {
     try {
-        const [txData, md5Data] = await Promise.all([
-            fetchData(URL_TX),
-            fetchData(URL_MD5)
-        ]);
+        const [a, b] = await Promise.all([fetchWithRetry(URL_TRUYEN_THONG), fetchWithRetry(URL_MD5)]);
         res.json({
-            taixiu: txData ? formatData(txData, historyTX, "TX", stats(predictionsTX)) : { error: "Không lấy được TX" },
-            taixiumd5: md5Data ? formatData(md5Data, historyMD5, "MD5", stats(predictionsMD5)) : { error: "Không lấy được MD5" }
+            taixiu: formatData(a.data, historyNormal, "TX"),
+            taixiumd5: formatData(b.data, historyMd5, "MD5")
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: "Lỗi", message: err.message });
     }
 });
 
-app.get("/thongke", (req, res) => {
-    res.json(stats(predictionsTX));
-});
+app.get("/thongke", (req, res) => res.json(stats(predictionsNormal)));
+app.get("/thongkemd5", (req, res) => res.json(stats(predictionsMd5)));
 
-app.get("/thongkemd5", (req, res) => {
-    res.json(stats(predictionsMD5));
-});
+// Khởi động
+poll();
+setInterval(poll, 8000);
 
-// Khởi động server
 app.listen(PORT, () => {
     console.log(`\n============================================================`);
-    console.log(`🎲 LC79 - SIÊU THUẬT TOÁN MARKOV TÀI XỈU v4.0`);
+    console.log(`🎲 LC79 - SIÊU THUẬT TOÁN v5.0`);
     console.log(`============================================================`);
     console.log(`✅ TX: http://localhost:${PORT}/taixiu`);
     console.log(`✅ MD5: http://localhost:${PORT}/taixiumd5`);
-    console.log(`✅ Thống kê TX: http://localhost:${PORT}/thongke`);
-    console.log(`✅ Thống kê MD5: http://localhost:${PORT}/thongkemd5`);
-    console.log(`============================================================`);
     console.log(`🎯 CHỈ CƯỢC KHI "co_nen_cuoc" = "✅✅✅ NÊN CƯỢC"`);
     console.log(`============================================================\n`);
 });
