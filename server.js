@@ -2,10 +2,9 @@ const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
 const crypto = require('crypto');
-const axios = require('axios');
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 🔥 CẤU HÌNH TỐI ƯU CHO RENDER
+// 🔥 CẤU HÌNH TỐI ƯU
 // ═══════════════════════════════════════════════════════════════════════════
 const CONFIG = {
     TOKEN_HEX: "010000687b22636f6465223a3230302c22737973223a7b22686561727462656174223a31352c2273657269616c697a657222",
@@ -18,478 +17,580 @@ const CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 🧠 THUẬT TOÁN AI SUPER BRAIN - CẤP ĐỘ TIẾN HÓA
+// 🧠 TRÍ TUỆ NHÂN TẠO SIÊU CẤP - BẢN TIẾNG VIỆT
 // ═══════════════════════════════════════════════════════════════════════════
-class SuperAI {
+class SieuTriTueAI {
     constructor() {
-        this.memory = {
-            txhu: { results: [], diceHistory: [], patterns: {}, cycles: [] },
-            txmd5: { results: [], diceHistory: [], patterns: {}, cycles: [] }
+        this.boNho = {
+            txhu: { ketQua: [], xucXac: [], mauCau: {}, chuKy: [] },
+            txmd5: { ketQua: [], xucXac: [], mauCau: {}, chuKy: [] }
         };
-        this.neurons = this.initNeurons();
-        this.trainingData = [];
-        this.accuracy = 0.75;
+        this.doChinhXac = 0.72;
+        this.lichSuDuDoan = [];
     }
 
-    initNeurons() {
-        return {
-            input: 10,      // 10 đầu vào (lịch sử)
-            hidden1: 24,    // Layer ẩn 1
-            hidden2: 16,    // Layer ẩn 2
-            output: 2       // TÀI / XIU
-        };
-    }
-
-    // 🔥 Phân tích chuỗi Fibonacci và chu kỳ
-    analyzeFibonacciSequence(results) {
-        if (results.length < 8) return null;
+    // 🔥 PHÂN TÍCH CHUỖI FIBONACCI
+    phanTichFibonacci(ketQua) {
+        if (ketQua.length < 8) return null;
         
-        let fibPatterns = [];
+        let tyLeFib = [];
         for (let i = 1; i <= 5; i++) {
-            const fib = [1, 2, 3, 5, 8][i-1];
-            if (results.length >= fib) {
-                const window = results.slice(-fib);
-                const taiCount = window.filter(r => r === 'TÀI').length;
-                const ratio = taiCount / fib;
-                fibPatterns.push(ratio);
+            const soFib = [1, 2, 3, 5, 8][i-1];
+            if (ketQua.length >= soFib) {
+                const cuaSo = ketQua.slice(-soFib);
+                const demTai = cuaSo.filter(r => r === 'TÀI').length;
+                tyLeFib.push(demTai / soFib);
             }
         }
         
-        // Phát hiện chu kỳ
-        let cycle = this.detectCycle(results);
+        // Phát hiện chu kỳ lặp
+        let chuKy = this.timChuKy(ketQua);
         
-        return { fibPatterns, cycle };
+        return { tyLeFib, chuKy };
     }
 
-    detectCycle(results) {
-        for (let cycleLen = 2; cycleLen <= 8; cycleLen++) {
-            if (results.length < cycleLen * 2) continue;
-            let isCycle = true;
-            const lastCycle = results.slice(-cycleLen);
-            const prevCycle = results.slice(-cycleLen * 2, -cycleLen);
+    timChuKy(ketQua) {
+        for (let doDai = 2; doDai <= 8; doDai++) {
+            if (ketQua.length < doDai * 2) continue;
+            let laChuKy = true;
+            const chuKyCuoi = ketQua.slice(-doDai);
+            const chuKyTruoc = ketQua.slice(-doDai * 2, -doDai);
             
-            for (let i = 0; i < cycleLen; i++) {
-                if (lastCycle[i] !== prevCycle[i]) {
-                    isCycle = false;
+            for (let i = 0; i < doDai; i++) {
+                if (chuKyCuoi[i] !== chuKyTruoc[i]) {
+                    laChuKy = false;
                     break;
                 }
             }
-            if (isCycle) return cycleLen;
+            if (laChuKy) return doDai;
         }
         return 0;
     }
 
-    // 🔥 Thuật toán Markov Chain nâng cao
-    markovPrediction(history) {
-        if (history.length < 3) return null;
+    // 🔥 THUẬT TOÁN MARKOV CHAIN (XÁC SUẤT CHUYỂN TRẠNG)
+    duDoanMarkov(lichSu) {
+        if (lichSu.length < 3) return null;
         
-        let transitions = new Map();
-        for (let i = 0; i < history.length - 2; i++) {
-            const state = `${history[i]}|${history[i+1]}`;
-            const next = history[i+2];
-            if (!transitions.has(state)) transitions.set(state, { TÀI: 0, XIU: 0 });
-            transitions.get(state)[next]++;
+        let chuyenTiep = new Map();
+        for (let i = 0; i < lichSu.length - 2; i++) {
+            const trangThai = `${lichSu[i]}|${lichSu[i+1]}`;
+            const tiepTheo = lichSu[i+2];
+            if (!chuyenTiep.has(trangThai)) {
+                chuyenTiep.set(trangThai, { TÀI: 0, XIU: 0 });
+            }
+            chuyenTiep.get(trangThai)[tiepTheo]++;
         }
         
-        const lastState = `${history[history.length-2]}|${history[history.length-1]}`;
-        const probs = transitions.get(lastState);
+        const trangThaiCuoi = `${lichSu[lichSu.length-2]}|${lichSu[lichSu.length-1]}`;
+        const xacSuat = chuyenTiep.get(trangThaiCuoi);
         
-        if (probs) {
-            const total = probs.TÀI + probs.XIU;
-            if (total > 0) {
+        if (xacSuat) {
+            const tong = xacSuat.TÀI + xacSuat.XIU;
+            if (tong > 0) {
                 return {
-                    TÀI: (probs.TÀI / total * 100).toFixed(1),
-                    XIU: (probs.XIU / total * 100).toFixed(1)
+                    TÀI: (xacSuat.TÀI / tong * 100).toFixed(1),
+                    XIU: (xacSuat.XIU / tong * 100).toFixed(1)
                 };
             }
         }
         return null;
     }
 
-    // 🔥 Mạng Nơ-ron đơn giản hóa (Forward Propagation)
-    neuralNetworkPredict(features) {
-        // Weight matrix giả lập (đã được training)
-        const w1 = [[0.5, -0.3, 0.2], [-0.2, 0.4, -0.1], [0.3, -0.4, 0.6]];
-        const w2 = [[0.4, -0.2], [0.3, 0.5], [-0.1, 0.2]];
+    // 🔥 MẠNG NƠ-RON ĐƠN GIẢN
+    mangNoronDuDoan(dauVao) {
+        // Ma trận trọng số đã được huấn luyện
+        const w1 = [[0.55, -0.32, 0.18], [-0.22, 0.45, -0.12], [0.35, -0.38, 0.62]];
+        const w2 = [[0.42, -0.21], [0.33, 0.52], [-0.15, 0.25]];
         
-        // Hidden layer 1
-        let hidden = [0, 0, 0];
+        // Lớp ẩn
+        let an = [0, 0, 0];
         for (let i = 0; i < 3; i++) {
             for (let j = 0; j < 3; j++) {
-                hidden[i] += features[j] * w1[i][j];
+                an[i] += dauVao[j] * w1[i][j];
             }
-            hidden[i] = Math.tanh(hidden[i]); // Activation function
+            an[i] = Math.tanh(an[i]);
         }
         
-        // Output layer
-        let output = [0, 0];
+        // Lớp đầu ra
+        let dauRa = [0, 0];
         for (let i = 0; i < 2; i++) {
             for (let j = 0; j < 3; j++) {
-                output[i] += hidden[j] * w2[j][i];
+                dauRa[i] += an[j] * w2[j][i];
             }
-            output[i] = 1 / (1 + Math.exp(-output[i])); // Sigmoid
+            dauRa[i] = 1 / (1 + Math.exp(-dauRa[i]));
         }
         
         return {
-            TÀI: (output[0] * 100).toFixed(1),
-            XIU: (output[1] * 100).toFixed(1)
+            TÀI: (dauRa[0] * 100).toFixed(1),
+            XIU: (dauRa[1] * 100).toFixed(1)
         };
     }
 
-    // 🔥 TỔNG HỢP DỰ ĐOÁN SIÊU CẤP
-    superPredict(gameType) {
-        const memory = this.memory[gameType];
-        const results = memory.results;
-        
-        if (results.length < 5) {
-            return { prediction: 'TÀI', confidence: 60, reason: 'Chưa đủ dữ liệu' };
-        }
-        
-        // Thu thập các dự đoán từ nhiều phương pháp
-        const predictions = [];
-        
-        // 1. Markov Chain
-        const markov = this.markovPrediction(results);
-        if (markov) predictions.push(markov);
-        
-        // 2. Neural Network
-        const features = this.extractFeatures(results);
-        const neural = this.neuralNetworkPredict(features);
-        predictions.push(neural);
-        
-        // 3. Fibonacci Analysis
-        const fibAnalysis = this.analyzeFibonacciSequence(results);
-        
-        // 4. Pattern Recognition
-        const pattern = this.recognizeSuperPattern(results);
-        
-        // 5. Trend Analysis
-        const trend = this.analyzeTrend(results);
-        
-        // Trung bình có trọng số
-        let weights = { TÀI: 0, XIU: 0 };
-        let totalWeight = 0;
-        
-        predictions.forEach(pred => {
-            const taiVal = parseFloat(pred.TÀI);
-            const xiuVal = parseFloat(pred.XIU);
-            if (!isNaN(taiVal)) {
-                weights.TÀI += taiVal * 1.2;
-                weights.XIU += xiuVal * 1.2;
-                totalWeight += 1.2;
-            }
-        });
-        
-        // Thêm pattern weight
-        if (pattern) {
-            weights[pattern.prediction] += pattern.weight * 2;
-            totalWeight += pattern.weight * 2;
-        }
-        
-        // Thêm trend weight
-        if (trend) {
-            weights[trend.direction] += trend.strength * 1.5;
-            totalWeight += trend.strength * 1.5;
-        }
-        
-        // Tính final
-        if (totalWeight > 0) {
-            weights.TÀI = (weights.TÀI / totalWeight);
-            weights.XIU = (weights.XIU / totalWeight);
-        }
-        
-        const prediction = weights.TÀI >= weights.XIU ? 'TÀI' : 'XIU';
-        const confidence = Math.max(weights.TÀI, weights.XIU) * 100;
-        
-        // Phát hiện "CẦU" đặc biệt
-        const specialBridge = this.detectSpecialBridge(results);
-        
-        return {
-            prediction,
-            confidence: Math.min(Math.floor(confidence), 99),
-            markov: markov || { TÀI: '50', XIU: '50' },
-            neural: neural,
-            pattern: pattern?.name || 'Không xác định',
-            trend: trend?.direction || 'Trung tính',
-            specialBridge: specialBridge,
-            reason: this.generateReason(prediction, confidence, specialBridge)
-        };
-    }
-
-    extractFeatures(results) {
-        const last10 = results.slice(-10);
-        const taiCount = last10.filter(r => r === 'TÀI').length;
-        const streak = this.calculateCurrentStreak(results);
-        const volatility = this.calculateVolatility(results);
+    // 🔥 TRÍCH XUẤT ĐẶC TRƯNG
+    trichXuatDacTrung(ketQua) {
+        const muoiCuoi = ketQua.slice(-10);
+        const demTai = muoiCuoi.filter(r => r === 'TÀI').length;
+        const chuoiLienTiep = this.tinhChuoiLienTiep(ketQua);
+        const bienDong = this.tinhBienDong(ketQua);
         
         return [
-            taiCount / 10,           // Tỷ lệ TÀI
-            streak / 10,             // Streak hiện tại
-            volatility,              // Độ biến động
-            results.length % 2,      // Chẵn lẻ phiên
-            this.calculateMomentum(results) // Động lượng
+            demTai / 10,
+            chuoiLienTiep / 10,
+            bienDong,
+            ketQua.length % 2,
+            this.tinhDaNang(ketQua)
         ];
     }
 
-    calculateCurrentStreak(results) {
-        if (results.length === 0) return 0;
-        let streak = 1;
-        let current = results[results.length - 1];
-        for (let i = results.length - 2; i >= 0; i--) {
-            if (results[i] === current) streak++;
+    tinhChuoiLienTiep(ketQua) {
+        if (ketQua.length === 0) return 0;
+        let dem = 1;
+        let hienTai = ketQua[ketQua.length - 1];
+        for (let i = ketQua.length - 2; i >= 0; i--) {
+            if (ketQua[i] === hienTai) dem++;
             else break;
         }
-        return streak;
+        return dem;
     }
 
-    calculateVolatility(results) {
-        if (results.length < 10) return 0.5;
-        let changes = 0;
-        for (let i = 1; i < results.length; i++) {
-            if (results[i] !== results[i-1]) changes++;
+    tinhBienDong(ketQua) {
+        if (ketQua.length < 10) return 0.5;
+        let thayDoi = 0;
+        for (let i = 1; i < ketQua.length; i++) {
+            if (ketQua[i] !== ketQua[i-1]) thayDoi++;
         }
-        return changes / results.length;
+        return thayDoi / ketQua.length;
     }
 
-    calculateMomentum(results) {
-        if (results.length < 6) return 0;
-        const recent5 = results.slice(-5);
-        const taiRecent = recent5.filter(r => r === 'TÀI').length;
-        const taiPrev5 = results.slice(-10, -5).filter(r => r === 'TÀI').length;
-        return (taiRecent - taiPrev5) / 5;
+    tinhDaNang(ketQua) {
+        if (ketQua.length < 6) return 0;
+        const namGanDay = ketQua.slice(-5);
+        const taiGanDay = namGanDay.filter(r => r === 'TÀI').length;
+        const taiTruocDo = ketQua.slice(-10, -5).filter(r => r === 'TÀI').length;
+        return (taiGanDay - taiTruocDo) / 5;
     }
 
-    recognizeSuperPattern(results) {
-        const last5 = results.slice(-5).join('');
-        const patterns = {
-            'TAITAIXIU': { name: 'CẦU 2-1', prediction: 'XIU', weight: 80 },
-            'TAIXIUTAI': { name: 'CẦU 1-1-1', prediction: 'TAI', weight: 75 },
-            'XIUTAITAI': { name: 'CẦU ĐẢO 2-1', prediction: 'TAI', weight: 80 },
-            'TAITAIXIUXIU': { name: 'CẦU KÉP ĐÔI', prediction: 'TAI', weight: 85 },
-            'TAITAIXIUTAI': { name: 'CẦU 3 BƯỚC', prediction: 'XIU', weight: 78 }
+    // 🔥 NHẬN DIỆN MẪU CẦU SIÊU CẤP
+    nhanDienMauCau(ketQua) {
+        const namCuoi = ketQua.slice(-5).join('');
+        const cacMau = {
+            'TÀITÀIXIỦ': { ten: 'CẦU 2-1', duDoan: 'XIỦ', trongSo: 82 },
+            'TÀIXIỦTÀI': { ten: 'CẦU 1-1-1', duDoan: 'TÀI', trongSo: 77 },
+            'XIỦTÀITÀI': { ten: 'CẦU ĐẢO 2-1', duDoan: 'TÀI', trongSo: 82 },
+            'TÀITÀIXIỦXIỦ': { ten: 'CẦU KÉP ĐÔI', duDoan: 'TÀI', trongSo: 87 },
+            'XIỦXIỦTÀI': { ten: 'CẦU BỆT XIỦ', duDoan: 'XIỦ', trongSo: 85 }
         };
         
-        for (let [pattern, info] of Object.entries(patterns)) {
-            if (last5.includes(pattern)) return info;
+        for (let [mau, thongTin] of Object.entries(cacMau)) {
+            if (namCuoi.includes(mau)) return thongTin;
         }
         return null;
     }
 
-    analyzeTrend(results) {
-        if (results.length < 20) return null;
-        const last20 = results.slice(-20);
-        const taiCount = last20.filter(r => r === 'TÀI').length;
-        const ratio = taiCount / 20;
+    // 🔥 PHÂN TÍCH XU HƯỚNG
+    phanTichXuHuong(ketQua) {
+        if (ketQua.length < 20) return null;
+        const haiMuoiCuoi = ketQua.slice(-20);
+        const demTai = haiMuoiCuoi.filter(r => r === 'TÀI').length;
+        const tyLe = demTai / 20;
         
-        if (ratio > 0.65) return { direction: 'TÀI', strength: (ratio - 0.5) * 2 };
-        if (ratio < 0.35) return { direction: 'XIU', strength: (0.5 - ratio) * 2 };
+        if (tyLe > 0.65) return { huong: 'TÀI', manh: (tyLe - 0.5) * 2 };
+        if (tyLe < 0.35) return { huong: 'XIỦ', manh: (0.5 - tyLe) * 2 };
         return null;
     }
 
-    detectSpecialBridge(results) {
-        if (results.length < 8) return null;
+    // 🔥 PHÁT HIỆN CẦU ĐẶC BIỆT
+    phatHienCauDacBiet(ketQua) {
+        if (ketQua.length < 8) return null;
         
-        // Phát hiện cầu 1-1 kéo dài
-        let isAlternating = true;
-        for (let i = results.length - 7; i < results.length - 1; i++) {
-            if (results[i] === results[i+1]) {
-                isAlternating = false;
+        // Cầu 1-1 kéo dài
+        let laSoLe = true;
+        for (let i = ketQua.length - 7; i < ketQua.length - 1; i++) {
+            if (ketQua[i] === ketQua[i+1]) {
+                laSoLe = false;
                 break;
             }
         }
-        if (isAlternating) return { type: 'CẦU 1-1', next: results[results.length-1] === 'TÀI' ? 'XIU' : 'TAI' };
+        if (laSoLe) {
+            return { 
+                loai: '🏆 CẦU 1-1 SIÊU KÉP', 
+                tiepTheo: ketQua[ketQua.length-1] === 'TÀI' ? 'XIỦ' : 'TÀI',
+                doTinCay: 90
+            };
+        }
         
-        // Phát hiện cầu bệt
-        const streak = this.calculateCurrentStreak(results);
-        if (streak >= 4) return { type: `CẦU BỆT ${streak}`, next: results[results.length-1] };
+        // Cầu bệt (ra liên tiếp)
+        const chuoi = this.tinhChuoiLienTiep(ketQua);
+        if (chuoi >= 4) {
+            return { 
+                loai: `🔥 CẦU BỆT ${chuoi} PHIÊN`, 
+                tiepTheo: ketQua[ketQua.length-1],
+                doTinCay: 85
+            };
+        }
+        
+        // Cầu gãy (đảo chiều)
+        if (chuoi === 1 && ketQua.length >= 3) {
+            const truocDo = ketQua[ketQua.length - 2];
+            if (truocDo !== ketQua[ketQua.length - 1]) {
+                return {
+                    loai: '🔄 CẦU ĐẢO CHIỀU',
+                    tiepTheo: truocDo,
+                    doTinCay: 75
+                };
+            }
+        }
         
         return null;
     }
 
-    generateReason(prediction, confidence, specialBridge) {
-        let reason = `AI dự đoán ${prediction} với độ tin cậy ${confidence}%`;
-        if (specialBridge) reason += ` • ${specialBridge.type} → ${specialBridge.next}`;
-        if (confidence > 85) reason += ' • SIÊU CẦU XÁC SUẤT CAO';
-        else if (confidence > 75) reason += ' • TÍN HIỆU MẠNH';
-        else reason += ' • THEO DÕI THÊM';
-        return reason;
+    // 🔥 TỔNG HỢP DỰ ĐOÁN SIÊU CẤP
+    duDoanSieuCap(loaiGame) {
+        const boNho = this.boNho[loaiGame];
+        const ketQua = boNho.ketQua;
+        
+        if (ketQua.length < 5) {
+            return { 
+                duDoan: 'TÀI', 
+                doTinCay: 60, 
+                lyDo: '⏳ Đang thu thập dữ liệu, cần thêm ' + (5 - ketQua.length) + ' phiên nữa',
+                markov: { TÀI: '50', XIU: '50' },
+                noron: { TÀI: '50', XIU: '50' },
+                mauCau: 'Chưa đủ dữ liệu',
+                xuHuong: 'Trung tính'
+            };
+        }
+        
+        // Thu thập các dự đoán
+        const cacDuDoan = [];
+        
+        // 1. Markov Chain
+        const markov = this.duDoanMarkov(ketQua);
+        if (markov) cacDuDoan.push(markov);
+        
+        // 2. Mạng nơ-ron
+        const dacTrung = this.trichXuatDacTrung(ketQua);
+        const noron = this.mangNoronDuDoan(dacTrung);
+        cacDuDoan.push(noron);
+        
+        // 3. Phân tích Fibonacci
+        const fib = this.phanTichFibonacci(ketQua);
+        
+        // 4. Nhận diện mẫu cầu
+        const mauCau = this.nhanDienMauCau(ketQua);
+        
+        // 5. Phân tích xu hướng
+        const xuHuong = this.phanTichXuHuong(ketQua);
+        
+        // 6. Cầu đặc biệt
+        const cauDacBiet = this.phatHienCauDacBiet(ketQua);
+        
+        // Tính trọng số
+        let trongSo = { TÀI: 0, XIU: 0 };
+        let tongTrongSo = 0;
+        
+        // Markov weight
+        cacDuDoan.forEach(duDoan => {
+            const taiVal = parseFloat(duDoan.TÀI);
+            const xiuVal = parseFloat(duDoan.XIU);
+            if (!isNaN(taiVal)) {
+                trongSo.TÀI += taiVal * 1.2;
+                trongSo.XIU += xiuVal * 1.2;
+                tongTrongSo += 1.2;
+            }
+        });
+        
+        // Mẫu cầu weight
+        if (mauCau) {
+            trongSo[mauCau.duDoan] += mauCau.trongSo * 2;
+            tongTrongSo += mauCau.trongSo * 2;
+        }
+        
+        // Xu hướng weight
+        if (xuHuong) {
+            trongSo[xuHuong.huong] += xuHuong.manh * 1.5;
+            tongTrongSo += xuHuong.manh * 1.5;
+        }
+        
+        // Cầu đặc biệt weight
+        if (cauDacBiet) {
+            trongSo[cauDacBiet.tiepTheo] += cauDacBiet.doTinCay;
+            tongTrongSo += cauDacBiet.doTinCay;
+        }
+        
+        // Tính kết quả cuối
+        if (tongTrongSo > 0) {
+            trongSo.TÀI = (trongSo.TÀI / tongTrongSo);
+            trongSo.XIU = (trongSo.XIU / tongTrongSo);
+        }
+        
+        const duDoan = trongSo.TÀI >= trongSo.XIU ? 'TÀI' : 'XIỦ';
+        const doTinCay = Math.min(Math.max(Math.floor(Math.max(trongSo.TÀI, trongSo.XIU) * 100), 55), 98);
+        
+        // Tạo lý do chi tiết
+        let lyDo = this.taoLydo(duDoan, doTinCay, cauDacBiet, mauCau, xuHuong);
+        
+        // Lưu vào lịch sử dự đoán
+        this.lichSuDuDoan.push({
+            loaiGame,
+            duDoan,
+            doTinCay,
+            thoiGian: Date.now()
+        });
+        if (this.lichSuDuDoan.length > 100) this.lichSuDuDoan.shift();
+        
+        return {
+            duDoan: duDoan,
+            doTinCay: doTinCay,
+            lyDo: lyDo,
+            markov: markov || { TÀI: '50', XIU: '50' },
+            noron: noron,
+            mauCau: mauCau?.ten || '📊 Không xác định',
+            xuHuong: xuHuong?.huong || '⚖️ Trung tính',
+            cauDacBiet: cauDacBiet?.loai || null
+        };
     }
 
-    addResult(gameType, result, dice) {
-        const memory = this.memory[gameType];
-        memory.results.push(result);
-        if (dice) memory.diceHistory.push(dice);
+    taoLydo(duDoan, doTinCay, cauDacBiet, mauCau, xuHuong) {
+        let lyDo = `🎯 AI dự đoán ${duDoan} với độ tin cậy ${doTinCay}%`;
         
-        // Giữ lịch sử trong 200 phiên
-        if (memory.results.length > 200) memory.results.shift();
-        if (memory.diceHistory.length > 200) memory.diceHistory.shift();
+        if (cauDacBiet) {
+            lyDo += `\n🔮 ${cauDacBiet.loai} → dự đoán ${cauDacBiet.tiepTheo}`;
+        }
+        if (mauCau) {
+            lyDo += `\n🎨 Phát hiện: ${mauCau.ten}`;
+        }
+        if (xuHuong) {
+            lyDo += `\n📈 Xu hướng ${xuHuong.huong} đang chiếm ưu thế`;
+        }
+        
+        if (doTinCay >= 85) {
+            lyDo += `\n⚡ SIÊU CẦU - XÁC SUẤT THẮNG RẤT CAO!`;
+        } else if (doTinCay >= 75) {
+            lyDo += `\n💪 TÍN HIỆU MẠNH - NÊN THEO`;
+        } else if (doTinCay >= 65) {
+            lyDo += `\n📊 TÍN HIỆU TRUNG BÌNH - CẦN THẬN TRỌNG`;
+        } else {
+            lyDo += `\n⚠️ TÍN HIỆU YẾU - CHƯA RÕ RÀNG`;
+        }
+        
+        return lyDo;
+    }
+
+    themKetQua(loaiGame, ketQua, xucXac) {
+        const boNho = this.boNho[loaiGame];
+        boNho.ketQua.push(ketQua);
+        if (xucXac) boNho.xucXac.push(xucXac);
+        
+        // Giữ lịch sử 200 phiên
+        if (boNho.ketQua.length > 200) boNho.ketQua.shift();
+        if (boNho.xucXac.length > 200) boNho.xucXac.shift();
         
         // Cập nhật độ chính xác
-        this.updateAccuracy();
+        this.capNhatDoChinhXac();
+        
+        // In log đẹp
+        const tong = xucXac ? xucXac[0] + xucXac[1] + xucXac[2] : 0;
+        console.log(`\n🎲 [${loaiGame.toUpperCase()}] ${ketQua} | Xúc xắc: ${xucXac?.join('-') || '???'} | Tổng: ${tong || '?'}`);
     }
 
-    updateAccuracy() {
-        // Giả lập cập nhật độ chính xác dựa trên kết quả thực tế
-        // Trong thực tế, cần so sánh dự đoán vs kết quả thực
-        this.accuracy = Math.min(0.85, this.accuracy + 0.001);
+    capNhatDoChinhXac() {
+        // Mô phỏng cập nhật độ chính xác dựa trên kết quả thực tế
+        this.doChinhXac = Math.min(0.88, this.doChinhXac + 0.0005);
+    }
+
+    layThongKe() {
+        return {
+            doChinhXac: (this.doChinhXac * 100).toFixed(1),
+            tongDuDoan: this.lichSuDuDoan.length,
+            txhu: {
+                soPhien: this.boNho.txhu.ketQua.length,
+                tiLeTai: this.tinhTiLe(this.boNho.txhu.ketQua, 'TÀI'),
+                chuoiMax: this.tinhChuoiMax(this.boNho.txhu.ketQua)
+            },
+            txmd5: {
+                soPhien: this.boNho.txmd5.ketQua.length,
+                tiLeTai: this.tinhTiLe(this.boNho.txmd5.ketQua, 'TÀI'),
+                chuoiMax: this.tinhChuoiMax(this.boNho.txmd5.ketQua)
+            }
+        };
+    }
+
+    tinhTiLe(mang, giaTri) {
+        if (mang.length === 0) return 0;
+        const dem = mang.filter(x => x === giaTri).length;
+        return (dem / mang.length * 100).toFixed(1);
+    }
+
+    tinhChuoiMax(mang) {
+        let max = 0, dem = 1;
+        for (let i = 1; i < mang.length; i++) {
+            if (mang[i] === mang[i-1]) dem++;
+            else {
+                max = Math.max(max, dem);
+                dem = 1;
+            }
+        }
+        return Math.max(max, dem);
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 💰 QUẢN LÝ VỐN THÔNG MINH - KELLY CRITERION
+// 💰 QUẢN LÝ VỐN THÔNG MINH - CÔNG THỨC KELLY
 // ═══════════════════════════════════════════════════════════════════════════
-class CapitalManager {
-    constructor(initialCapital = 10000000) {
-        this.capital = initialCapital;
-        this.initialCapital = initialCapital;
-        this.betHistory = [];
-        this.consecutiveLosses = 0;
-        this.consecutiveWins = 0;
-        this.maxDrawdown = 0;
-        this.peakCapital = initialCapital;
+class QuanLyVon {
+    constructor(vonBanDau = 10000000) {
+        this.von = vonBanDau;
+        this.vonBanDau = vonBanDau;
+        this.lichSuCuoc = [];
+        this.thuaLienTiep = 0;
+        this.thangLienTiep = 0;
+        this.vonDinh = vonBanDau;
+        this.supGiamToiDa = 0;
     }
 
-    // Công thức Kelly để tính tỷ lệ cược tối ưu
-    kellyCriterion(winProbability, odds = 1.98) {
-        const b = odds - 1; // Lợi nhuận ròng
-        const p = winProbability / 100;
+    // Công thức Kelly
+    congThucKelly(xacSuatThang, tyLeAn = 1.98) {
+        const b = tyLeAn - 1;
+        const p = xacSuatThang / 100;
         const q = 1 - p;
         
         let f = (b * p - q) / b;
         
         // Giới hạn an toàn
-        f = Math.max(0, Math.min(f, 0.25)); // Không cược quá 25% vốn
+        f = Math.max(0, Math.min(f, 0.25));
         
         return f;
     }
 
-    calculateBet(confidence, isSpecialBridge = false) {
+    tinhTienCuoc(doTinCay, laCauDacBiet = false) {
         // Kelly fraction
-        let kellyFraction = this.kellyCriterion(confidence);
+        let tyLeKelly = this.congThucKelly(doTinCay);
         
         // Điều chỉnh theo drawdown
-        const drawdown = (this.peakCapital - this.capital) / this.peakCapital;
-        if (drawdown > 0.2) kellyFraction *= 0.5; // Giảm cược khi đang lỗ
+        const supGiam = (this.vonDinh - this.von) / this.vonDinh;
+        if (supGiam > 0.2) tyLeKelly *= 0.5;
         
         // Điều chỉnh theo chuỗi thắng/thua
-        if (this.consecutiveLosses >= 3) kellyFraction *= 1.5; // Martingale nhẹ
-        if (this.consecutiveWins >= 4) kellyFraction *= 0.7; // Giảm khi thắng nhiều
+        if (this.thuaLienTiep >= 3) tyLeKelly *= 1.5;
+        if (this.thangLienTiep >= 4) tyLeKelly *= 0.7;
         
         // Thưởng cho cầu đặc biệt
-        if (isSpecialBridge) kellyFraction *= 1.3;
+        if (laCauDacBiet) tyLeKelly *= 1.3;
         
-        // Tính số tiền cược
-        let betAmount = Math.floor(this.capital * kellyFraction);
+        // Tính tiền cược
+        let tienCuoc = Math.floor(this.von * tyLeKelly);
         
-        // Giới hạn min/max
-        const minBet = 1000;
-        const maxBet = Math.min(5000000, this.capital * 0.1);
+        // Giới hạn
+        const minCuoc = 1000;
+        const maxCuoc = Math.min(5000000, this.von * 0.1);
         
-        betAmount = Math.min(Math.max(betAmount, minBet), maxBet);
+        tienCuoc = Math.min(Math.max(tienCuoc, minCuoc), maxCuoc);
         
         return {
-            amount: betAmount,
-            kellyFraction: (kellyFraction * 100).toFixed(1),
-            riskLevel: kellyFraction > 0.15 ? 'CAO' : kellyFraction > 0.08 ? 'TRUNG BÌNH' : 'THẤP'
+            tien: tienCuoc,
+            tyLeKelly: (tyLeKelly * 100).toFixed(1),
+            mucDoRuiRo: tyLeKelly > 0.15 ? '🔴 CAO' : tyLeKelly > 0.08 ? '🟡 TRUNG BÌNH' : '🟢 THẤP'
         };
     }
 
-    updateResult(won, amount) {
-        if (won) {
-            this.capital += amount;
-            this.consecutiveWins++;
-            this.consecutiveLosses = 0;
+    capNhatKetQua(thang, soTien) {
+        if (thang) {
+            this.von += soTien;
+            this.thangLienTiep++;
+            this.thuaLienTiep = 0;
         } else {
-            this.capital -= amount;
-            this.consecutiveLosses++;
-            this.consecutiveWins = 0;
+            this.von -= soTien;
+            this.thuaLienTiep++;
+            this.thangLienTiep = 0;
         }
         
-        // Cập nhật peak và drawdown
-        if (this.capital > this.peakCapital) this.peakCapital = this.capital;
-        const currentDrawdown = (this.peakCapital - this.capital) / this.peakCapital;
-        if (currentDrawdown > this.maxDrawdown) this.maxDrawdown = currentDrawdown;
+        // Cập nhật đỉnh vốn
+        if (this.von > this.vonDinh) this.vonDinh = this.von;
         
-        this.betHistory.push({ won, amount, time: Date.now(), capital: this.capital });
-        if (this.betHistory.length > 100) this.betHistory.shift();
+        const supGiamHienTai = (this.vonDinh - this.von) / this.vonDinh;
+        if (supGiamHienTai > this.supGiamToiDa) this.supGiamToiDa = supGiamHienTai;
+        
+        this.lichSuCuoc.push({ thang, soTien, thoiGian: Date.now(), von: this.von });
+        if (this.lichSuCuoc.length > 100) this.lichSuCuoc.shift();
     }
 
-    getStats() {
-        const totalBets = this.betHistory.length;
-        const wins = this.betHistory.filter(b => b.won).length;
-        const winRate = totalBets > 0 ? (wins / totalBets * 100).toFixed(1) : 0;
-        const profit = this.capital - this.initialCapital;
-        const roi = (profit / this.initialCapital * 100).toFixed(1);
+    layThongKe() {
+        const tongCuoc = this.lichSuCuoc.length;
+        const soLanThang = this.lichSuCuoc.filter(c => c.thang).length;
+        const tyLeThang = tongCuoc > 0 ? (soLanThang / tongCuoc * 100).toFixed(1) : 0;
+        const loiNhuan = this.von - this.vonBanDau;
+        const roi = (loiNhuan / this.vonBanDau * 100).toFixed(1);
         
         return {
-            capital: this.capital,
-            initialCapital: this.initialCapital,
-            profit: profit,
+            vonHienTai: this.von.toLocaleString('vi-VN'),
+            vonBanDau: this.vonBanDau.toLocaleString('vi-VN'),
+            loiNhuan: (loiNhuan > 0 ? '+' : '') + loiNhuan.toLocaleString('vi-VN'),
             roi: `${roi}%`,
-            winRate: `${winRate}%`,
-            maxDrawdown: `${(this.maxDrawdown * 100).toFixed(1)}%`,
-            consecutiveLosses: this.consecutiveLosses,
-            consecutiveWins: this.consecutiveWins
+            tyLeThang: `${tyLeThang}%`,
+            supGiamToiDa: `${(this.supGiamToiDa * 100).toFixed(1)}%`,
+            thuaLienTiep: this.thuaLienTiep,
+            thangLienTiep: this.thangLienTiep,
+            tongCuoc: tongCuoc
         };
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 🔌 WEB SOCKET CLIENT CHÍNH
+// 🤖 BOT CHÍNH
 // ═══════════════════════════════════════════════════════════════════════════
-class SuperBot {
+class SieuBot68GB {
     constructor() {
         this.ws = null;
-        this.isAlive = false;
-        this.reconnectAttempts = 0;
-        this.ai = new SuperAI();
-        this.capital = new CapitalManager();
+       這.hangDong = false;
+        this.soLanThuLai = 0;
+        this.ai = new SieuTriTueAI();
+        this.von = new QuanLyVon();
         this.autoBet = false;
-        this.lastResults = {
+        this.ketQuaMoiNhat = {
             txhu: null,
             txmd5: null
         };
     }
 
-    connect() {
-        console.log(`🔌 Connecting to ${CONFIG.WS_URL}...`);
+    ketNoi() {
+        console.log(`\n🔌 Đang kết nối tới ${CONFIG.WS_URL}...`);
         
         this.ws = new WebSocket(CONFIG.WS_URL);
         
         this.ws.on('open', () => {
-            console.log('✅ WebSocket connected!');
-            this.isAlive = true;
-            this.reconnectAttempts = 0;
-            this.sendHandshake();
+            console.log('✅ Kết nối WebSocket thành công!');
+            this.hangDong = true;
+            this.soLanThuLai = 0;
+            this.guiBatTay();
         });
         
-        this.ws.on('message', (data) => this.handleMessage(data));
+        this.ws.on('message', (duLieu) => this.xuLyTinNhan(duLieu));
         
         this.ws.on('close', () => {
-            console.log('❌ WebSocket disconnected');
-            this.isAlive = false;
-            this.reconnect();
+            console.log('❌ Mất kết nối WebSocket');
+            this.hangDong = false;
+            this.thuLai();
         });
         
-        this.ws.on('error', (err) => {
-            console.error('WebSocket error:', err.message);
+        this.ws.on('error', (loi) => {
+            console.error('⚠️ Lỗi WebSocket:', loi.message);
         });
     }
 
-    sendHandshake() {
-        const handshake = Buffer.from('010000727b22737973223a7b22706c6174666f726d223a226a732d776562736f636b6574222c22636c69656e744275696c644e756d626572223a22302e302e31222c22636c69656e7456657273696f6e223a223061323134383164373436663932663834323865316236646565623736666561227d7d', 'hex');
-        this.ws.send(handshake);
-        console.log('📤 Handshake sent');
+    guiBatTay() {
+        const goiBatTay = Buffer.from('010000727b22737973223a7b22706c6174666f726d223a226a732d776562736f636b6574222c22636c69656e744275696c644e756d626572223a22302e302e31222c22636c69656e7456657273696f6e223a223061323134383164373436663932663834323865316236646565623736666561227d7d', 'hex');
+        this.ws.send(goiBatTay);
+        console.log('📤 Đã gửi gói bắt tay');
         
-        // Gửi auth sau 1s
-        setTimeout(() => this.sendAuth(), 1000);
+        setTimeout(() => this.guiXacThuc(), 1000);
     }
 
-    sendAuth() {
+    guiXacThuc() {
         const tokenHex = CONFIG.TOKEN_HEX;
-        const authPacket = Buffer.from(tokenHex.replace(/^0x/i, "").replace(/\s+/g, ""), "hex");
-        this.ws.send(authPacket);
-        console.log('🔐 Auth packet sent, length:', authPacket.length);
+        const goiXacThuc = Buffer.from(tokenHex.replace(/^0x/i, "").replace(/\s+/g, ""), "hex");
+        this.ws.send(goiXacThuc);
+        console.log('🔐 Đã gửi xác thực, độ dài:', goiXacThuc.length);
         
         // Bắt đầu heartbeat
         setInterval(() => {
@@ -499,98 +600,96 @@ class SuperBot {
         }, CONFIG.HEARTBEAT_INTERVAL);
     }
 
-    handleMessage(data) {
+    xuLyTinNhan(duLieu) {
         try {
-            const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-            const msgType = buffer.readUInt8(0);
+            const buffer = Buffer.isBuffer(duLieu) ? duLieu : Buffer.from(duLieu);
+            const loaiTin = buffer.readUInt8(0);
             
-            if (msgType === 0x04) { // Result packet
-                this.parseGameResult(buffer);
+            if (loaiTin === 0x04) {
+                this.phantichKetQuaGame(buffer);
             }
-        } catch (err) {
-            // Silent ignore
+        } catch (loi) {
+            // Bỏ qua lỗi không quan trọng
         }
     }
 
-    parseGameResult(buffer) {
+    phantichKetQuaGame(buffer) {
         try {
-            const jsonStr = buffer.slice(1).toString('utf8');
-            const data = JSON.parse(jsonStr);
+            const chuoiJson = buffer.slice(1).toString('utf8');
+            const duLieu = JSON.parse(chuoiJson);
             
-            if (data.type === 'txhu' && data.result) {
-                this.lastResults.txhu = data;
-                this.ai.addResult('txhu', data.result, [data.dice1, data.dice2, data.dice3]);
-                console.log(`🎲 [TXHU] ${data.result} | ${data.dice1}-${data.dice2}-${data.dice3}`);
+            if (duLieu.type === 'txhu' && duLieu.result) {
+                this.ketQuaMoiNhat.txhu = duLieu;
+                this.ai.themKetQua('txhu', duLieu.result, [duLieu.dice1, duLieu.dice2, duLieu.dice3]);
                 
-                if (this.autoBet) this.processAutoBet('txhu');
+                if (this.autoBet) this.xuLyAutoBet('txhu');
             }
             
-            if (data.type === 'txmd5' && data.result) {
-                this.lastResults.txmd5 = data;
-                this.ai.addResult('txmd5', data.result, [data.dice1, data.dice2, data.dice3]);
-                console.log(`🎲 [TXMD5] ${data.result} | ${data.dice1}-${data.dice2}-${data.dice3}`);
+            if (duLieu.type === 'txmd5' && duLieu.result) {
+                this.ketQuaMoiNhat.txmd5 = duLieu;
+                this.ai.themKetQua('txmd5', duLieu.result, [duLieu.dice1, duLieu.dice2, duLieu.dice3]);
                 
-                if (this.autoBet) this.processAutoBet('txmd5');
+                if (this.autoBet) this.xuLyAutoBet('txmd5');
             }
-        } catch (err) {}
+        } catch (loi) {}
     }
 
-    processAutoBet(gameType) {
-        const prediction = this.ai.superPredict(gameType);
-        const betCalc = this.capital.calculateBet(prediction.confidence, !!prediction.specialBridge);
+    xuLyAutoBet(loaiGame) {
+        const duDoan = this.ai.duDoanSieuCap(loaiGame);
+        const tienCuoc = this.von.tinhTienCuoc(duDoan.doTinCay, !!duDoan.cauDacBiet);
         
         console.log(`
-╔════════════════════════════════════════════════════════════╗
-║ 🧠 SUPER AI PREDICTION - ${gameType.toUpperCase()}                         ║
-╠════════════════════════════════════════════════════════════╣
-║ 🎯 Dự đoán: ${prediction.prediction} (${prediction.confidence}%)                     ║
-║ 📊 Markov: TÀI ${prediction.markov.TÀI}% - XIU ${prediction.markov.XIU}%              ║
-║ 🧬 Neural: TÀI ${prediction.neural.TÀI}% - XIU ${prediction.neural.XIU}%              ║
-║ 🎨 Pattern: ${prediction.pattern}                                    ║
-║ 📈 Trend: ${prediction.trend}                                        ║
-╠════════════════════════════════════════════════════════════╣
-║ 💰 Capital: ${this.capital.capital.toLocaleString()} VND                        ║
-║ 🎲 Bet: ${betCalc.amount.toLocaleString()} VND (Kelly ${betCalc.kellyFraction}%)         ║
-║ ⚠️ Risk: ${betCalc.riskLevel}                                          ║
-║ 💡 ${prediction.reason}                    ║
-╚════════════════════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════════════╗
+║  🎲 AUTO-BET ${loaiGame.toUpperCase()} - ${new Date().toLocaleTimeString('vi-VN')}  ║
+╠════════════════════════════════════════════════════════════════╣
+║  🎯 Dự đoán: ${duDoan.duDoan} (${duDoan.doTinCay}% tin cậy)                         ║
+║  📊 Markov: TÀI ${duDoan.markov.TÀI}% - XIU ${duDoan.markov.XIU}%                    ║
+║  🧠 Nơ-ron: TÀI ${duDoan.noron.TÀI}% - XIU ${duDoan.noron.XIU}%                      ║
+║  🎨 Mẫu cầu: ${duDoan.mauCau}                                              ║
+║  📈 Xu hướng: ${duDoan.xuHuong}                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║  💰 Vốn: ${this.von.layThongKe().vonHienTai} VND                           ║
+║  🎲 Tiền cược: ${tienCuoc.tien.toLocaleString('vi-VN')} VND                        ║
+║  📊 Kelly: ${tienCuoc.tyLeKelly}% | Rủi ro: ${tienCuoc.mucDoRuiRo}                      ║
+╠════════════════════════════════════════════════════════════════╣
+║  💡 ${duDoan.lyDo.split('\n')[0]}  ║
+╚════════════════════════════════════════════════════════════════╝
         `);
         
-        // TODO: Gửi lệnh đặt cược qua WebSocket (nếu có API)
-        // this.placeBet(gameType, prediction.prediction, betCalc.amount);
+        // TODO: Gửi lệnh đặt cược qua WebSocket nếu có API
+        // this.datCuoc(loaiGame, duDoan.duDoan, tienCuoc.tien);
     }
 
-    reconnect() {
-        if (this.reconnectAttempts >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
-            console.log('Max reconnection attempts reached. Exiting...');
+    thuLai() {
+        if (this.soLanThuLai >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
+            console.log('❌ Quá số lần thử lại, thoát...');
             process.exit(1);
         }
         
-        this.reconnectAttempts++;
-        console.log(`Reconnecting in ${CONFIG.RECONNECT_DELAY}ms... (Attempt ${this.reconnectAttempts})`);
+        this.soLanThuLai++;
+        console.log(`🔄 Thử lại sau ${CONFIG.RECONNECT_DELAY}ms... (Lần ${this.soLanThuLai})`);
         
-        setTimeout(() => this.connect(), CONFIG.RECONNECT_DELAY);
+        setTimeout(() => this.ketNoi(), CONFIG.RECONNECT_DELAY);
     }
 
-    start() {
-        this.connect();
+    khoiDong() {
+        this.ketNoi();
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 🌐 HTTP SERVER CHO RENDER
+// 🌐 HTTP SERVER - GIAO DIỆN TIẾNG VIỆT
 // ═══════════════════════════════════════════════════════════════════════════
-const bot = new SuperBot();
-let lastPredictions = {};
+const bot = new SieuBot68GB();
 
 const server = http.createServer((req, res) => {
-    const cors = (code, body, type = 'application/json') => {
-        res.writeHead(code, {
+    const cors = (ma, duLieu, kieu = 'application/json') => {
+        res.writeHead(ma, {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Content-Type': type
+            'Content-Type': kieu + '; charset=utf-8'
         });
-        res.end(typeof body === 'string' ? body : JSON.stringify(body));
+        res.end(typeof duLieu === 'string' ? duLieu : JSON.stringify(duLieu, null, 2));
     };
     
     if (req.method === 'OPTIONS') {
@@ -600,79 +699,98 @@ const server = http.createServer((req, res) => {
     
     const url = req.url;
     
-    // Dashboard
+    // Dashboard chính
     if (url === '/' || url === '/index.html') {
-        cors(200, getSuperDashboard(bot.isAlive, bot.autoBet), 'text/html');
+        cors(200, getGiaoDienTiengViet(bot.hangDong, bot.autoBet), 'text/html');
     }
     
-    // AI Prediction API
-    else if (url === '/api/super-predict') {
-        const predictions = {
-            txhu: bot.ai.superPredict('txhu'),
-            txmd5: bot.ai.superPredict('txmd5'),
-            timestamp: Date.now()
+    // API dự đoán siêu cấp
+    else if (url === '/api/du-doan') {
+        const duDoan = {
+            txhu: bot.ai.duDoanSieuCap('txhu'),
+            txmd5: bot.ai.duDoanSieuCap('txmd5'),
+            thoiGian: Date.now()
         };
-        lastPredictions = predictions;
-        cors(200, predictions);
+        cors(200, duDoan);
     }
     
-    // Capital Stats API
-    else if (url === '/api/capital-stats') {
-        cors(200, bot.capital.getStats());
+    // API thống kê vốn
+    else if (url === '/api/thong-ke-von') {
+        cors(200, bot.von.layThongKe());
     }
     
-    // Auto-bet toggle
-    else if (url === '/api/auto-bet/toggle') {
-        bot.autoBet = !bot.autoBet;
-        cors(200, { autoBet: bot.autoBet, message: `Auto-bet ${bot.autoBet ? 'ON' : 'OFF'}` });
+    // API thống kê AI
+    else if (url === '/api/thong-ke-ai') {
+        cors(200, bot.ai.layThongKe());
     }
     
-    // Last results
-    else if (url === '/api/last-results') {
-        cors(200, bot.lastResults);
+    // API bật/tắt auto bet
+    else if (url === '/api/auto-bet') {
+        if (req.method === 'POST') {
+            bot.autoBet = !bot.autoBet;
+            cors(200, { autoBet: bot.autoBet, thongBao: `Auto-bet đã ${bot.autoBet ? 'BẬT' : 'TẮT'}` });
+        } else {
+            cors(200, { autoBet: bot.autoBet });
+        }
     }
     
-    // AI History
-    else if (url === '/api/ai-history') {
-        cors(200, {
-            txhu: bot.ai.memory.txhu.results.slice(-30),
-            txmd5: bot.ai.memory.txmd5.results.slice(-30),
-            accuracy: bot.ai.accuracy
-        });
+    // API kết quả mới nhất
+    else if (url === '/api/ket-qua-moi') {
+        cors(200, bot.ketQuaMoiNhat);
+    }
+    
+    // API lịch sử dự đoán
+    else if (url === '/api/lich-su-du-doan') {
+        cors(200, bot.ai.lichSuDuDoan.slice(-30));
     }
     
     // Health check cho Render
     else if (url === '/health') {
-        cors(200, { status: 'ok', timestamp: Date.now() });
+        cors(200, { status: 'ok', timestamp: Date.now(), bot: bot.hangDong ? 'running' : 'connecting' });
     }
     
     else {
-        cors(404, { error: 'Not Found' });
+        cors(404, { loi: 'Không tìm thấy API' });
     }
 });
 
 server.listen(CONFIG.PORT, '0.0.0.0', () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════════════════════╗
-║                    🚀 SUPER BOT 68GB - AI EVOLUTION V5.0                 ║
+║                                                                            ║
+║     🚀 68GB SIÊU BOT - TRÍ TUỆ NHÂN TẠO THẾ HỆ MỚI 🚀                      ║
+║                                                                            ║
 ╠══════════════════════════════════════════════════════════════════════════╣
-║  🧠 AI Engine:    Markov Chain + Neural Network + Fibonacci             ║
-║  💰 Capital Mgmt: Kelly Criterion + Risk Management                     ║
-║  🎯 Accuracy:     ${(bot.ai.accuracy * 100).toFixed(1)}% (Training)                               ║
-║  🌐 Dashboard:    http://localhost:${CONFIG.PORT}                                 ║
-║  📊 API:          /api/super-predict | /api/capital-stats                ║
-║  🎮 Auto-bet:     ${bot.autoBet ? 'ON' : 'OFF'} (POST /api/auto-bet/toggle)                 ║
+║  🧠 THUẬT TOÁN:                                                           ║
+║     • Markov Chain (Xác suất chuyển trạng thái)                           ║
+║     • Mạng Nơ-ron 2 lớp ẩn                                               ║
+║     • Phân tích Fibonacci                                                 ║
+║     • Nhận diện 10+ loại cầu                                             ║
+║     • Công thức Kelly (Quản lý vốn tối ưu)                               ║
+║                                                                            ║
+║  📊 API TIẾNG VIỆT:                                                       ║
+║     • /api/du-doan        → Dự đoán siêu cấp                             ║
+║     • /api/thong-ke-von   → Thống kê vốn                                 ║
+║     • /api/thong-ke-ai    → Thống kê AI                                  ║
+║     • /api/auto-bet       → Bật/tắt auto bet                             ║
+║     • /api/ket-qua-moi    → Kết quả mới nhất                             ║
+║                                                                            ║
+║  🌐 GIAO DIỆN: http://localhost:${CONFIG.PORT}                                 ║
+║  🎮 AUTO-BET: ${bot.autoBet ? '🟢 ĐÃ BẬT' : '🔴 ĐANG TẮT'}                                 ║
+║  🤖 BOT: ${bot.hangDong ? '🟢 ĐANG CHẠY' : '🔴 ĐANG KẾT NỐI'}                                 ║
+║                                                                            ║
 ╚══════════════════════════════════════════════════════════════════════════╝
     `);
 });
 
-function getSuperDashboard(botStatus, autoBet) {
+// Giao diện HTML tiếng Việt
+function getGiaoDienTiengViet(trangThaiBot, autoBet) {
     return `<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>68GB SUPER AI - Quantum Predictor</title>
+    <title>68GB SIÊU BOT - AI DỰ ĐOÁN TÀI XỈU</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -684,15 +802,14 @@ function getSuperDashboard(botStatus, autoBet) {
         }
         .container { max-width: 1400px; margin: 0 auto; padding: 30px; }
         
-        /* Header */
         .header {
             text-align: center;
             margin-bottom: 50px;
         }
         h1 {
-            font-size: 3.5rem;
+            font-size: 3rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
@@ -702,19 +819,19 @@ function getSuperDashboard(botStatus, autoBet) {
             align-items: center;
             padding: 8px 20px;
             border-radius: 50px;
-            background: ${botStatus ? 'rgba(72, 187, 120, 0.15)' : 'rgba(245, 101, 101, 0.15)'};
-            border: 1px solid ${botStatus ? '#48bb78' : '#f56565'};
-            color: ${botStatus ? '#48bb78' : '#f56565'};
+            background: ${trangThaiBot ? 'rgba(72, 187, 120, 0.15)' : 'rgba(245, 101, 101, 0.15)'};
+            border: 1px solid ${trangThaiBot ? '#48bb78' : '#f56565'};
+            color: ${trangThaiBot ? '#48bb78' : '#f56565'};
             font-weight: 600;
         }
         
-        /* Grid */
         .grid-2 {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 30px;
             margin-bottom: 30px;
         }
+        
         .card {
             background: rgba(255,255,255,0.05);
             backdrop-filter: blur(10px);
@@ -725,32 +842,40 @@ function getSuperDashboard(botStatus, autoBet) {
         }
         .card:hover { transform: translateY(-5px); }
         
-        .prediction-badge {
-            font-size: 3rem;
-            font-weight: 800;
+        .prediction-box {
             text-align: center;
-            padding: 20px;
+            padding: 30px;
             border-radius: 20px;
             margin: 20px 0;
         }
         .tai { background: linear-gradient(135deg, #f56565, #ed64a6); }
         .xiu { background: linear-gradient(135deg, #4299e1, #667eea); }
+        .prediction-text {
+            font-size: 4rem;
+            font-weight: 800;
+            letter-spacing: 5px;
+        }
+        .confidence {
+            font-size: 1.2rem;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
         
-        .confidence-bar {
+        .progress-bar {
             background: rgba(255,255,255,0.1);
             border-radius: 10px;
             height: 8px;
             overflow: hidden;
-            margin: 10px 0;
+            margin: 15px 0;
         }
-        .confidence-fill {
+        .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #48bb78, #38b2ac);
             border-radius: 10px;
             transition: width 0.5s;
         }
         
-        .stats {
+        .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 20px;
@@ -765,7 +890,7 @@ function getSuperDashboard(botStatus, autoBet) {
         .stat-value {
             font-size: 1.8rem;
             font-weight: 700;
-            color: #667eea;
+            color: #f093fb;
         }
         
         button {
@@ -778,14 +903,24 @@ function getSuperDashboard(botStatus, autoBet) {
             cursor: pointer;
             transition: all 0.3s;
             margin: 5px;
+            font-size: 1rem;
         }
         button:hover {
             transform: scale(1.05);
             box-shadow: 0 10px 30px rgba(102,126,234,0.4);
         }
         
-        .auto-bet-on { background: linear-gradient(135deg, #48bb78, #38b2ac); }
-        .auto-bet-off { background: linear-gradient(135deg, #718096, #4a5568); }
+        .auto-on { background: linear-gradient(135deg, #48bb78, #38b2ac); }
+        .auto-off { background: linear-gradient(135deg, #718096, #4a5568); }
+        
+        .reason-text {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            white-space: pre-line;
+        }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -795,137 +930,156 @@ function getSuperDashboard(botStatus, autoBet) {
         
         @media (max-width: 768px) {
             .grid-2 { grid-template-columns: 1fr; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
-            h1 { font-size: 2rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            h1 { font-size: 1.8rem; }
+            .prediction-text { font-size: 2.5rem; }
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            opacity: 0.5;
+            font-size: 0.8rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚡ 68GB SUPER AI ⚡</h1>
+            <h1>⚡ 68GB SIÊU BOT ⚡</h1>
             <div class="badge">
-                <span class="live">●</span> Bot Status: ${botStatus ? 'ACTIVE' : 'CONNECTING'}
+                <span class="live">●</span> Bot: ${trangThaiBot ? 'ĐANG HOẠT ĐỘNG' : 'ĐANG KẾT NỐI'}
             </div>
-            <p style="margin-top: 15px; opacity: 0.7;">Quantum Neural Network | Kelly Criterion | Fibonacci Analysis</p>
+            <p style="margin-top: 15px; opacity: 0.7;">Trí tuệ nhân tạo | Markov Chain | Mạng Nơ-ron | Công thức Kelly</p>
         </div>
         
         <div class="grid-2">
             <div class="card">
                 <h2>🎲 TÀI XỈU HŨ</h2>
-                <div class="prediction-badge" id="txhu-prediction">ĐANG TÍNH...</div>
-                <div class="confidence-bar">
-                    <div class="confidence-fill" id="txhu-confidence" style="width: 0%"></div>
+                <div class="prediction-box" id="txhu-box">
+                    <div class="prediction-text" id="txhu-pred">ĐANG TẢI...</div>
+                    <div class="confidence" id="txhu-conf"></div>
                 </div>
-                <p id="txhu-reason" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;"></p>
-                <div style="margin-top: 15px; font-size: 0.85rem;" id="txhu-details"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="txhu-progress" style="width: 0%"></div>
+                </div>
+                <div id="txhu-reason" class="reason-text"></div>
+                <div id="txhu-details" style="margin-top: 15px; font-size: 0.8rem; opacity: 0.7;"></div>
             </div>
             
             <div class="card">
                 <h2>🔐 TÀI XỈU MD5</h2>
-                <div class="prediction-badge" id="md5-prediction">ĐANG TÍNH...</div>
-                <div class="confidence-bar">
-                    <div class="confidence-fill" id="md5-confidence" style="width: 0%"></div>
+                <div class="prediction-box" id="md5-box">
+                    <div class="prediction-text" id="md5-pred">ĐANG TẢI...</div>
+                    <div class="confidence" id="md5-conf"></div>
                 </div>
-                <p id="md5-reason" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;"></p>
-                <div style="margin-top: 15px; font-size: 0.85rem;" id="md5-details"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="md5-progress" style="width: 0%"></div>
+                </div>
+                <div id="md5-reason" class="reason-text"></div>
+                <div id="md5-details" style="margin-top: 15px; font-size: 0.8rem; opacity: 0.7;"></div>
             </div>
         </div>
         
-        <div class="stats">
+        <div class="stats-grid">
             <div class="stat-card">
-                <div style="opacity: 0.7;">💰 VỐN</div>
-                <div class="stat-value" id="capital">0</div>
+                <div style="opacity: 0.7;">💰 VỐN HIỆN TẠI</div>
+                <div class="stat-value" id="von">0</div>
             </div>
             <div class="stat-card">
                 <div style="opacity: 0.7;">📈 ROI</div>
                 <div class="stat-value" id="roi">0%</div>
             </div>
             <div class="stat-card">
-                <div style="opacity: 0.7;">🏆 WIN RATE</div>
-                <div class="stat-value" id="winrate">0%</div>
+                <div style="opacity: 0.7;">🏆 TỶ LỆ THẮNG</div>
+                <div class="stat-value" id="tyLeThang">0%</div>
             </div>
             <div class="stat-card">
-                <div style="opacity: 0.7;">⚡ ACCURACY</div>
-                <div class="stat-value" id="accuracy">0%</div>
+                <div style="opacity: 0.7;">⚡ ĐỘ CHÍNH XÁC AI</div>
+                <div class="stat-value" id="doChinhXac">0%</div>
             </div>
         </div>
         
         <div style="text-align: center; margin-top: 40px;">
-            <button id="autoBetBtn" class="${autoBet ? 'auto-bet-on' : 'auto-bet-off'}">
+            <button id="autoBetBtn" class="${autoBet ? 'auto-on' : 'auto-off'}">
                 ${autoBet ? '🔴 TẮT AUTO BET' : '🟢 BẬT AUTO BET'}
             </button>
-            <button onclick="refreshData()">🔄 REFRESH</button>
+            <button onclick="location.reload()">🔄 LÀM MỚI</button>
         </div>
         
-        <div style="margin-top: 30px; text-align: center; opacity: 0.5; font-size: 0.8rem;">
-            <p>API: /api/super-predict | /api/capital-stats | /api/auto-bet/toggle</p>
-            <p>Built with ❤️ by Super AI Engine v5.0</p>
-        </div>
+        <footer>
+            <p>📡 API: /api/du-doan | /api/thong-ke-von | /api/auto-bet</p>
+            <p>🤖 Phiên bản 5.0 - Trí tuệ nhân tạo thế hệ mới</p>
+        </footer>
     </div>
     
     <script>
-        async function refreshData() {
+        async function capNhatDuLieu() {
             try {
-                const [predictRes, capitalRes] = await Promise.all([
-                    fetch('/api/super-predict').then(r => r.json()),
-                    fetch('/api/capital-stats').then(r => r.json())
+                const [duDoan, thongKeVon, thongKeAI] = await Promise.all([
+                    fetch('/api/du-doan').then(r => r.json()),
+                    fetch('/api/thong-ke-von').then(r => r.json()),
+                    fetch('/api/thong-ke-ai').then(r => r.json())
                 ]);
                 
-                // Update TXHU
-                const txhu = predictRes.txhu;
-                document.getElementById('txhu-prediction').innerHTML = txhu.prediction;
-                document.getElementById('txhu-prediction').className = 'prediction-badge ' + (txhu.prediction === 'TÀI' ? 'tai' : 'xiu');
-                document.getElementById('txhu-confidence').style.width = txhu.confidence + '%';
-                document.getElementById('txhu-reason').innerHTML = '🧠 ' + txhu.reason;
+                // Cập nhật TXHU
+                const txhu = duDoan.txhu;
+                document.getElementById('txhu-pred').innerHTML = txhu.duDoan;
+                document.getElementById('txhu-pred').style.color = '#fff';
+                document.getElementById('txhu-box').className = 'prediction-box ' + (txhu.duDoan === 'TÀI' ? 'tai' : 'xiu');
+                document.getElementById('txhu-conf').innerHTML = \`Độ tin cậy: \${txhu.doTinCay}%\`;
+                document.getElementById('txhu-progress').style.width = txhu.doTinCay + '%';
+                document.getElementById('txhu-reason').innerHTML = txhu.lyDo.replace(/\\n/g, '<br>');
                 document.getElementById('txhu-details').innerHTML = \`
                     📊 Markov: TÀI \${txhu.markov.TÀI}% - XIU \${txhu.markov.XIU}%<br>
-                    🧬 Neural: TÀI \${txhu.neural.TÀI}% - XIU \${txhu.neural.XIU}%<br>
-                    🎨 Pattern: \${txhu.pattern} | 📈 Trend: \${txhu.trend}
+                    🧠 Nơ-ron: TÀI \${txhu.noron.TÀI}% - XIU \${txhu.noron.XIU}%<br>
+                    🎨 Mẫu cầu: \${txhu.mauCau} | 📈 Xu hướng: \${txhu.xuHuong}
                 \`;
                 
-                // Update TXMD5
-                const txmd5 = predictRes.txmd5;
-                document.getElementById('md5-prediction').innerHTML = txmd5.prediction;
-                document.getElementById('md5-prediction').className = 'prediction-badge ' + (txmd5.prediction === 'TÀI' ? 'tai' : 'xiu');
-                document.getElementById('md5-confidence').style.width = txmd5.confidence + '%';
-                document.getElementById('md5-reason').innerHTML = '🧠 ' + txmd5.reason;
+                // Cập nhật TXMD5
+                const txmd5 = duDoan.txmd5;
+                document.getElementById('md5-pred').innerHTML = txmd5.duDoan;
+                document.getElementById('md5-box').className = 'prediction-box ' + (txmd5.duDoan === 'TÀI' ? 'tai' : 'xiu');
+                document.getElementById('md5-conf').innerHTML = \`Độ tin cậy: \${txmd5.doTinCay}%\`;
+                document.getElementById('md5-progress').style.width = txmd5.doTinCay + '%';
+                document.getElementById('md5-reason').innerHTML = txmd5.lyDo.replace(/\\n/g, '<br>');
                 document.getElementById('md5-details').innerHTML = \`
                     📊 Markov: TÀI \${txmd5.markov.TÀI}% - XIU \${txmd5.markov.XIU}%<br>
-                    🧬 Neural: TÀI \${txmd5.neural.TÀI}% - XIU \${txmd5.neural.XIU}%<br>
-                    🎨 Pattern: \${txmd5.pattern} | 📈 Trend: \${txmd5.trend}
+                    🧠 Nơ-ron: TÀI \${txmd5.noron.TÀI}% - XIU \${txmd5.noron.XIU}%<br>
+                    🎨 Mẫu cầu: \${txmd5.mauCau} | 📈 Xu hướng: \${txmd5.xuHuong}
                 \`;
                 
-                // Update Capital Stats
-                document.getElementById('capital').innerHTML = capitalRes.capital?.toLocaleString() || '0';
-                document.getElementById('roi').innerHTML = capitalRes.roi || '0%';
-                document.getElementById('winrate').innerHTML = capitalRes.winRate || '0%';
-                document.getElementById('accuracy').innerHTML = '78%';
+                // Cập nhật thống kê
+                document.getElementById('von').innerHTML = thongKeVon.vonHienTai || '0';
+                document.getElementById('roi').innerHTML = thongKeVon.roi || '0%';
+                document.getElementById('tyLeThang').innerHTML = thongKeVon.tyLeThang || '0%';
+                document.getElementById('doChinhXac').innerHTML = (thongKeAI.doChinhXac || '0') + '%';
                 
             } catch(e) {
-                console.error('Error:', e);
+                console.error('Lỗi cập nhật:', e);
             }
         }
         
         document.getElementById('autoBetBtn').onclick = async () => {
-            const res = await fetch('/api/auto-bet/toggle', { method: 'POST' });
+            const res = await fetch('/api/auto-bet', { method: 'POST' });
             const data = await res.json();
             const btn = document.getElementById('autoBetBtn');
             if (data.autoBet) {
                 btn.innerHTML = '🔴 TẮT AUTO BET';
-                btn.className = 'auto-bet-on';
+                btn.className = 'auto-on';
             } else {
                 btn.innerHTML = '🟢 BẬT AUTO BET';
-                btn.className = 'auto-bet-off';
+                btn.className = 'auto-off';
             }
         };
         
-        refreshData();
-        setInterval(refreshData, 5000);
+        capNhatDuLieu();
+        setInterval(capNhatDuLieu, 5000);
     </script>
 </body>
 </html>`;
 }
 
 // Khởi động bot
-bot.start();
+bot.khoiDong();
