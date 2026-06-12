@@ -1,19 +1,13 @@
-
 {
-  "name": "68gb-bot-advanced",
+  "name": "68gb-sieu-bot",
   "version": "5.0.0",
-  "description": "Advanced AI Bot for 68GB with Super Algorithm",
+  "description": "Siêu Bot 68GB với AI dự đoán Tài Xỉu - Phiên bản tiếng Việt",
   "main": "super_bot.js",
   "scripts": {
-    "start": "node super_bot.js",
-    "dev": "nodemon super_bot.js"
+    "start": "node super_bot.js"
   },
   "dependencies": {
-    "ws": "^8.14.2",
-    "axios": "^1.6.2",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "compression": "^1.7.4"
+    "ws": "^8.14.2"
   },
   "engines": {
     "node": ">=18.x"
