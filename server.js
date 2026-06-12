@@ -14,20 +14,192 @@ const CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// BOT UNIFIED (GIỮ NGUYÊN CẤU TRÚC CŨ)
+// TRÍ TUỆ NHÂN TẠO - DỰ ĐOÁN THÔNG MINH
+// ═══════════════════════════════════════════════════════════════════════════
+class AIPredictor {
+    constructor() {
+        this.lichSuDuDoan = {
+            txhu: [],
+            txmd5: []
+        };
+    }
+
+    // Dự đoán dựa trên lịch sử
+    duDoan(lichSu, loaiGame) {
+        if (!lichSu || lichSu.length < 3) {
+            return {
+                duDoan: 'TÀI',
+                doTinCay: 60,
+                lyDo: '⏳ Đang thu thập dữ liệu...',
+                phienTruoc: null,
+                markov: { TÀI: 50, XIU: 50 },
+                nhanDienCau: 'Chưa đủ dữ liệu',
+                cauDacBiet: null
+            };
+        }
+
+        // Lấy 10 phiên gần nhất
+        const ganDay = lichSu.slice(-10);
+        const taiGanDay = ganDay.filter(r => r['kết quả'] === 'TÀI').length;
+        const xiuGanDay = 10 - taiGanDay;
+        
+        // Lấy 5 phiên gần nhất để phân tích cầu
+        const namCuoi = lichSu.slice(-5);
+        const taiNamCuoi = namCuoi.filter(r => r['kết quả'] === 'TÀI').length;
+        const xiuNamCuoi = 5 - taiNamCuoi;
+        
+        // PHÂN TÍCH CẦU (PATTERN RECOGNITION)
+        let nhanDienCau = '';
+        let doTinCayBoSung = 0;
+        let cauDacBiet = null;
+        
+        // 1. Kiểm tra cầu bệt (ra liên tiếp)
+        let chuoiLienTiep = 1;
+        for (let i = lichSu.length - 2; i >= 0; i--) {
+            if (lichSu[i]['kết quả'] === lichSu[lichSu.length - 1]['kết quả']) {
+                chuoiLienTiep++;
+            } else break;
+        }
+        
+        if (chuoiLienTiep >= 4) {
+            const loaiCau = lichSu[lichSu.length - 1]['kết quả'];
+            nhanDienCau = `🔥 CẦU BỆT ${chuoiLienTiep} ${loaiCau}`;
+            doTinCayBoSung = 15;
+            cauDacBiet = { loai: 'BỆT', soPhien: chuoiLienTiep, ketQua: loaiCau };
+        }
+        
+        // 2. Kiểm tra cầu 1-1 (đan xen)
+        else if (lichSu.length >= 6) {
+            let laCau11 = true;
+            for (let i = lichSu.length - 5; i < lichSu.length - 1; i++) {
+                if (lichSu[i]['kết quả'] === lichSu[i+1]['kết quả']) {
+                    laCau11 = false;
+                    break;
+                }
+            }
+            if (laCau11) {
+                nhanDienCau = '🔄 CẦU 1-1 ĐAN XEN';
+                doTinCayBoSung = 12;
+                const tiepTheo = lichSu[lichSu.length - 1]['kết quả'] === 'TÀI' ? 'XIỦ' : 'TÀI';
+                cauDacBiet = { loai: '1-1', tiepTheo: tiepTheo };
+            }
+        }
+        
+        // 3. Kiểm tra cầu 2-1
+        else if (lichSu.length >= 6) {
+            const baCuoi = lichSu.slice(-3);
+            if (baCuoi[0]['kết quả'] === baCuoi[1]['kết quả'] && 
+                baCuoi[1]['kết quả'] !== baCuoi[2]['kết quả']) {
+                nhanDienCau = '📊 CẦU 2-1 (Kép rồi đảo)';
+                doTinCayBoSung = 10;
+                cauDacBiet = { loai: '2-1', ketQua: baCuoi[2]['kết quả'] };
+            }
+        }
+        
+        // 4. Kiểm tra cầu 1-2
+        else if (lichSu.length >= 6) {
+            const baCuoi = lichSu.slice(-3);
+            if (baCuoi[0]['kết quả'] !== baCuoi[1]['kết quả'] && 
+                baCuoi[1]['kết quả'] === baCuoi[2]['kết quả']) {
+                nhanDienCau = '📊 CẦU 1-2 (Đảo rồi kép)';
+                doTinCayBoSung = 10;
+                cauDacBiet = { loai: '1-2', ketQua: baCuoi[2]['kết quả'] };
+            }
+        }
+        
+        // 5. Phân tích xu hướng
+        let xuHuong = '';
+        if (taiGanDay >= 7) xuHuong = '📈 TÀI ĐANG ÁP ĐẢO';
+        else if (xiuGanDay >= 7) xuHuong = '📉 XIỦ ĐANG ÁP ĐẢO';
+        else if (taiGanDay >= 6) xuHuong = '📈 TÀI ĐANG LÊN';
+        else if (xiuGanDay >= 6) xuHuong = '📉 XIỦ ĐANG LÊN';
+        else xuHuong = '⚖️ CÂN BẰNG';
+        
+        // THUẬT TOÁN MARKOV CHAIN (xác suất chuyển tiếp)
+        let markov = { TÀI: 50, XIU: 50 };
+        if (lichSu.length >= 4) {
+            const last2 = `${lichSu[lichSu.length-2]['kết quả']}|${lichSu[lichSu.length-1]['kết quả']}`;
+            const dem = { TÀI: 0, XIU: 0 };
+            for (let i = 0; i < lichSu.length - 2; i++) {
+                const state = `${lichSu[i]['kết quả']}|${lichSu[i+1]['kết quả']}`;
+                if (state === last2) {
+                    dem[lichSu[i+2]['kết quả']]++;
+                }
+            }
+            const tong = dem.TÀI + dem.XIU;
+            if (tong > 0) {
+                markov = {
+                    TÀI: Math.round(dem.TÀI / tong * 100),
+                    XIU: Math.round(dem.XIU / tong * 100)
+                };
+            }
+        }
+        
+        // TÍNH ĐỘ TIN CẬY CUỐI CÙNG
+        let doTinCay = Math.round((Math.max(taiNamCuoi, xiuNamCuoi) / 5) * 70) + 20;
+        doTinCay = Math.min(doTinCay + doTinCayBoSung, 98);
+        
+        // DỰ ĐOÁN CUỐI CÙNG
+        let duDoan = '';
+        if (cauDacBiet?.loai === '1-1') {
+            duDoan = cauDacBiet.tiepTheo;
+            doTinCay = Math.min(doTinCay + 10, 95);
+        } else if (cauDacBiet?.loai === 'BỆT') {
+            duDoan = cauDacBiet.ketQua;
+            doTinCay = Math.min(doTinCay + 15, 95);
+        } else if (markov.TÀI > markov.XIU + 20) {
+            duDoan = 'TÀI';
+        } else if (markov.XIU > markov.TÀI + 20) {
+            duDoan = 'XIỦ';
+        } else {
+            duDoan = taiNamCuoi >= xiuNamCuoi ? 'TÀI' : 'XIỦ';
+        }
+        
+        // TẠO LÝ DO CHI TIẾT
+        let lyDo = `🎯 Dự đoán: ${duDoan} (${doTinCay}% tin cậy)\n`;
+        lyDo += `📊 10 phiên gần: ${taiGanDay} TÀI - ${xiuGanDay} XIỦ\n`;
+        lyDo += `📈 5 phiên cuối: ${taiNamCuoi} TÀI - ${xiuNamCuoi} XIỦ\n`;
+        lyDo += `🎲 Markov: TÀI ${markov.TÀI}% - XIU ${markov.XIU}%\n`;
+        lyDo += `🎨 Nhận diện: ${nhanDienCau || 'Cầu hỗn hợp'}\n`;
+        lyDo += `📉 Xu hướng: ${xuHuong}`;
+        
+        return {
+            duDoan: duDoan,
+            doTinCay: doTinCay,
+            lyDo: lyDo,
+            phienTruoc: lichSu[lichSu.length - 1] || null,
+            markov: markov,
+            nhanDienCau: nhanDienCau || 'Cầu hỗn hợp',
+            xuHuong: xuHuong,
+            cauDacBiet: cauDacBiet,
+            thongKe: {
+                tongPhien: lichSu.length,
+                tiLeTai: (lichSu.filter(r => r['kết quả'] === 'TÀI').length / lichSu.length * 100).toFixed(1),
+                tiLeXiu: (lichSu.filter(r => r['kết quả'] === 'XIỦ').length / lichSu.length * 100).toFixed(1),
+                chuoiLienTiep: chuoiLienTiep
+            }
+        };
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BOT UNIFIED
 // ═══════════════════════════════════════════════════════════════════════════
 class Bot68GB {
     constructor(shared) {
         this.shared = shared;
         this.ws = null;
         this.isAlive = false;
+        this.ai = new AIPredictor();
         this.txhu = {
             last_result: null,
-            history: []
+            history: [],
+            duDoan: null
         };
         this.md5 = {
             last_result: null,
-            history: []
+            history: [],
+            duDoan: null
         };
     }
 
@@ -36,19 +208,19 @@ class Bot68GB {
     }
 
     connect() {
-        console.log(`🔌 Connecting to ${CONFIG.WS_URL}...`);
+        console.log(`🔌 Đang kết nối tới ${CONFIG.WS_URL}...`);
         
         this.ws = new WebSocket(CONFIG.WS_URL);
         
         this.ws.on('open', () => {
-            console.log('✅ WebSocket connected!');
+            console.log('✅ Kết nối WebSocket thành công!');
             this.isAlive = true;
             this.ws.send(this.shared.PKT_HANDSHAKE);
             
             setTimeout(() => {
                 if (this.shared.PKT_AUTH && this.shared.PKT_AUTH.length > 0) {
                     this.ws.send(this.shared.PKT_AUTH);
-                    console.log('🔐 Auth sent');
+                    console.log('🔐 Đã gửi xác thực');
                 }
             }, 1000);
             
@@ -62,13 +234,13 @@ class Bot68GB {
         this.ws.on('message', (data) => this.handleMessage(data));
         
         this.ws.on('close', () => {
-            console.log('❌ Disconnected');
+            console.log('❌ Mất kết nối');
             this.isAlive = false;
             setTimeout(() => this.connect(), 3000);
         });
         
         this.ws.on('error', (err) => {
-            console.error('WebSocket error:', err.message);
+            console.error('Lỗi WebSocket:', err.message);
         });
     }
 
@@ -81,36 +253,48 @@ class Bot68GB {
                 const jsonStr = buffer.slice(1).toString('utf8');
                 const parsed = JSON.parse(jsonStr);
                 
-                // Xử lý kết quả Tài Xỉu Hũ
+                // Xử lý TXHU
                 if (parsed.type === 'txhu' && parsed.result) {
                     const result = {
-                        'Phiên trước': parsed.session || '000000',
+                        'Phiên trước': parsed.session || ('TXHU' + Date.now().toString().slice(-6)),
                         'kết quả': parsed.result,
                         'xúc xắc 1': parsed.dice1,
                         'xúc xắc 2': parsed.dice2,
                         'xúc xắc 3': parsed.dice3,
-                        'tổng': parsed.dice1 + parsed.dice2 + parsed.dice3
+                        'tổng': parsed.dice1 + parsed.dice2 + parsed.dice3,
+                        'thời gian': new Date().toLocaleString('vi-VN')
                     };
                     this.txhu.last_result = result;
                     this.txhu.history.unshift(result);
-                    if (this.txhu.history.length > 50) this.txhu.history.pop();
-                    console.log(`🎲 [TXHU] ${parsed.result} | ${parsed.dice1}-${parsed.dice2}-${parsed.dice3}`);
+                    if (this.txhu.history.length > 100) this.txhu.history.pop();
+                    
+                    // Cập nhật dự đoán mới dựa trên lịch sử
+                    this.txhu.duDoan = this.ai.duDoan(this.txhu.history, 'txhu');
+                    
+                    console.log(`\n🎲 [TXHU] Phiên: ${result['Phiên trước']} | ${result['kết quả']} | ${result['xúc xắc 1']}-${result['xúc xắc 2']}-${result['xúc xắc 3']}`);
+                    console.log(`🤖 Dự đoán phiên tiếp: ${this.txhu.duDoan.duDoan} (${this.txhu.duDoan.doTinCay}%)`);
                 }
                 
-                // Xử lý kết quả Tài Xỉu MD5
+                // Xử lý TXMD5
                 if (parsed.type === 'txmd5' && parsed.result) {
                     const result = {
-                        'Phiên trước': parsed.session || '00000',
+                        'Phiên trước': parsed.session || ('MD5' + Date.now().toString().slice(-5)),
                         'kết quả': parsed.result,
                         'xúc xắc 1': parsed.dice1,
                         'xúc xắc 2': parsed.dice2,
                         'xúc xắc 3': parsed.dice3,
-                        'tổng': parsed.dice1 + parsed.dice2 + parsed.dice3
+                        'tổng': parsed.dice1 + parsed.dice2 + parsed.dice3,
+                        'thời gian': new Date().toLocaleString('vi-VN')
                     };
                     this.md5.last_result = result;
                     this.md5.history.unshift(result);
-                    if (this.md5.history.length > 50) this.md5.history.pop();
-                    console.log(`🎲 [TXMD5] ${parsed.result} | ${parsed.dice1}-${parsed.dice2}-${parsed.dice3}`);
+                    if (this.md5.history.length > 100) this.md5.history.pop();
+                    
+                    // Cập nhật dự đoán mới
+                    this.md5.duDoan = this.ai.duDoan(this.md5.history, 'txmd5');
+                    
+                    console.log(`\n🎲 [TXMD5] Phiên: ${result['Phiên trước']} | ${result['kết quả']} | ${result['xúc xắc 1']}-${result['xúc xắc 2']}-${result['xúc xắc 3']}`);
+                    console.log(`🤖 Dự đoán phiên tiếp: ${this.md5.duDoan.duDoan} (${this.md5.duDoan.doTinCay}%)`);
                 }
             }
         } catch (err) {
@@ -120,7 +304,7 @@ class Bot68GB {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// KHỞI TẠO SHARED DATA
+// KHỞI TẠO
 // ═══════════════════════════════════════════════════════════════════════════
 const shared = {
     WS_URL: CONFIG.WS_URL,
@@ -134,7 +318,7 @@ const shared = {
 const bot = new Bot68GB(shared);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HTTP SERVER - ĐẦY ĐỦ TẤT CẢ API
+// HTTP SERVER - ĐẦY ĐỦ API
 // ═══════════════════════════════════════════════════════════════════════════
 const server = http.createServer((req, res) => {
     const cors = (code, data, type = 'application/json') => {
@@ -152,11 +336,9 @@ const server = http.createServer((req, res) => {
     }
     
     const url = req.url;
-    console.log(`📡 ${req.method} ${url}`);
     
-    // ========== API CŨ (ĐỂ TƯƠNG THÍCH VỚI FRONTEND CŨ) ==========
+    // ==================== API CŨ (GIỮ NGUYÊN) ====================
     
-    // API lấy token
     if (req.method === 'POST' && url === '/api/token') {
         let body = '';
         req.on('data', c => body += c);
@@ -176,200 +358,159 @@ const server = http.createServer((req, res) => {
         });
     }
     
-    // API lấy kết quả TXHU
+    // API TXHU - TRẢ VỀ PHIÊN TRƯỚC + KẾT QUẢ
     else if (url === '/api/68gb/txhu') {
-        cors(200, bot.txhu.last_result || { error: "Chưa có dữ liệu", message: "Đang chờ kết quả từ game..." });
+        const response = bot.txhu.last_result || { 
+            error: "Chưa có dữ liệu", 
+            message: "Đang chờ kết quả từ game...",
+            'Phiên trước': 'Đang chờ',
+            'kết quả': '???',
+            'xúc xắc 1': '?',
+            'xúc xắc 2': '?',
+            'xúc xắc 3': '?'
+        };
+        cors(200, response);
     }
     
-    // API lấy lịch sử TXHU
+    // API lịch sử TXHU
     else if (url === '/api/68gb/history/txhu') {
         cors(200, bot.txhu.history.slice().reverse());
     }
     
-    // API lấy kết quả TXMD5
+    // API TXMD5
     else if (url === '/api/68gb/txmd5' || url === '/api/data') {
-        cors(200, bot.md5.last_result || { error: "Chưa có dữ liệu", message: "Đang chờ kết quả từ game..." });
+        const response = bot.md5.last_result || {
+            error: "Chưa có dữ liệu",
+            'Phiên trước': 'Đang chờ',
+            'kết quả': '???',
+            'xúc xắc 1': '?',
+            'xúc xắc 2': '?',
+            'xúc xắc 3': '?'
+        };
+        cors(200, response);
     }
     
-    // API lấy lịch sử TXMD5
+    // API lịch sử TXMD5
     else if (url === '/api/68gb/history/txmd5' || url === '/api/history') {
         cors(200, bot.md5.history.slice().reverse());
     }
     
-    // API refetch token (gọi script lấy token mới)
-    else if (url === '/api/refetch') {
-        cors(200, { status: "ok", message: "Đã gửi yêu cầu lấy token mới" });
-        // Có thể thêm logic lấy token tự động ở đây
+    // ==================== API DỰ ĐOÁN MỚI ====================
+    
+    // API dự đoán cho TXHU
+    else if (url === '/api/predict/txhu') {
+        const duDoan = bot.txhu.duDoan || bot.ai.duDoan(bot.txhu.history, 'txhu');
+        cors(200, {
+            game: 'TXHU',
+            duDoan: duDoan,
+            phiênHiệnTại: bot.txhu.last_result,
+            thoiGian: new Date().toISOString()
+        });
     }
     
-    // ========== API MỚI NÂNG CẤP ==========
+    // API dự đoán cho TXMD5
+    else if (url === '/api/predict/txmd5') {
+        const duDoan = bot.md5.duDoan || bot.ai.duDoan(bot.md5.history, 'txmd5');
+        cors(200, {
+            game: 'TXMD5',
+            duDoan: duDoan,
+            phiênHiệnTại: bot.md5.last_result,
+            thoiGian: new Date().toISOString()
+        });
+    }
     
-    // API dự đoán
+    // API dự đoán tổng hợp (cả 2 game)
     else if (url === '/api/du-doan' || url === '/api/predict') {
-        const getPrediction = (history) => {
-            if (!history || history.length < 3) {
-                return { duDoan: 'TÀI', doTinCay: 60, lyDo: 'Đang thu thập dữ liệu...' };
-            }
-            
-            const last5 = history.slice(-5);
-            const taiCount = last5.filter(r => r['kết quả'] === 'TÀI').length;
-            const xiuCount = 5 - taiCount;
-            
-            let duDoan = taiCount >= xiuCount ? 'TÀI' : 'XIỦ';
-            let doTinCay = Math.floor(Math.max(taiCount, xiuCount) / 5 * 70) + 30;
-            
-            // Phát hiện cầu
-            let cau = '';
-            if (taiCount === 5) cau = '🔥 CẦU BỆT TÀI - RẤT MẠNH';
-            else if (xiuCount === 5) cau = '🔥 CẦU BỆT XIỦ - RẤT MẠNH';
-            else if (taiCount === 4) cau = '📈 CẦU TÀI ÁP ĐẢO';
-            else if (xiuCount === 4) cau = '📉 CẦU XIỦ ÁP ĐẢO';
-            else if (last5[0] !== last5[1] && last5[1] !== last5[2] && last5[2] !== last5[3]) cau = '🔄 CẦU 1-1 ĐANG CHẠY';
-            else cau = '📊 CẦU HỖN HỢP - THEO DÕI';
-            
-            return {
-                duDoan: duDoan,
-                doTinCay: doTinCay,
-                lyDo: `${cau}\n📊 5 phiên gần nhất: ${taiCount} TÀI - ${xiuCount} XIỦ\n🎯 Dự đoán: ${duDoan} với độ tin cậy ${doTinCay}%`,
-                markov: { TÀI: (taiCount/5*100).toFixed(1), XIU: (xiuCount/5*100).toFixed(1) },
-                noron: { TÀI: (taiCount/5*100).toFixed(1), XIU: (xiuCount/5*100).toFixed(1) },
-                mauCau: cau,
-                xuHuong: taiCount >= 3 ? 'TÀI' : 'XIỦ'
-            };
-        };
+        cors(200, {
+            txhu: bot.txhu.duDoan || bot.ai.duDoan(bot.txhu.history, 'txhu'),
+            txmd5: bot.md5.duDoan || bot.ai.duDoan(bot.md5.history, 'txmd5'),
+            timestamp: Date.now(),
+            thoiGian: new Date().toLocaleString('vi-VN')
+        });
+    }
+    
+    // API dự đoán SIÊU CẤP (chi tiết hơn)
+    else if (url === '/api/super-predict') {
+        const txhuDuDoan = bot.txhu.duDoan || bot.ai.duDoan(bot.txhu.history, 'txhu');
+        const txmd5DuDoan = bot.md5.duDoan || bot.ai.duDoan(bot.md5.history, 'txmd5');
         
         cors(200, {
-            txhu: getPrediction(bot.txhu.history),
-            txmd5: getPrediction(bot.md5.history),
+            txhu: {
+                duDoan: txhuDuDoan.duDoan,
+                doTinCay: txhuDuDoan.doTinCay,
+                lyDo: txhuDuDoan.lyDo,
+                phienTruoc: bot.txhu.last_result,
+                markov: txhuDuDoan.markov,
+                nhanDienCau: txhuDuDoan.nhanDienCau,
+                xuHuong: txhuDuDoan.xuHuong,
+                thongKe: txhuDuDoan.thongKe
+            },
+            txmd5: {
+                duDoan: txmd5DuDoan.duDoan,
+                doTinCay: txmd5DuDoan.doTinCay,
+                lyDo: txmd5DuDoan.lyDo,
+                phienTruoc: bot.md5.last_result,
+                markov: txmd5DuDoan.markov,
+                nhanDienCau: txmd5DuDoan.nhanDienCau,
+                xuHuong: txmd5DuDoan.xuHuong,
+                thongKe: txmd5DuDoan.thongKe
+            },
             timestamp: Date.now()
         });
     }
     
-    // API thống kê vốn
-    else if (url === '/api/thong-ke-von' || url === '/api/capital-stats') {
+    // API thống kê
+    else if (url === '/api/stats') {
         cors(200, {
-            vonHienTai: '10,000,000',
-            vonBanDau: '10,000,000',
-            loiNhuan: '+0',
-            roi: '0%',
-            tyLeThang: '0%',
-            supGiamToiDa: '0%',
-            thuaLienTiep: 0,
-            thangLienTiep: 0,
-            tongCuoc: 0
-        });
-    }
-    
-    // API thống kê AI
-    else if (url === '/api/thong-ke-ai') {
-        cors(200, {
-            doChinhXac: '76.5',
-            tongDuDoan: bot.txhu.history.length + bot.md5.history.length,
             txhu: {
-                soPhien: bot.txhu.history.length,
+                tongPhien: bot.txhu.history.length,
+                ganDay: bot.txhu.history.slice(0, 10),
                 tiLeTai: bot.txhu.history.length > 0 ? 
                     (bot.txhu.history.filter(r => r['kết quả'] === 'TÀI').length / bot.txhu.history.length * 100).toFixed(1) : 0
             },
             txmd5: {
-                soPhien: bot.md5.history.length,
+                tongPhien: bot.md5.history.length,
+                ganDay: bot.md5.history.slice(0, 10),
                 tiLeTai: bot.md5.history.length > 0 ?
                     (bot.md5.history.filter(r => r['kết quả'] === 'TÀI').length / bot.md5.history.length * 100).toFixed(1) : 0
             }
         });
     }
     
-    // API bật/tắt auto bet
-    else if (url === '/api/auto-bet' || url === '/api/auto-bet/toggle') {
-        if (req.method === 'POST') {
-            cors(200, { autoBet: false, thongBao: 'Tính năng đang phát triển' });
-        } else {
-            cors(200, { autoBet: false });
-        }
-    }
-    
-    // API kết quả mới nhất
-    else if (url === '/api/ket-qua-moi' || url === '/api/last-results') {
-        cors(200, {
-            txhu: bot.txhu.last_result,
-            txmd5: bot.md5.last_result
-        });
-    }
-    
-    // API lịch sử dự đoán
-    else if (url === '/api/lich-su-du-doan') {
-        cors(200, []);
-    }
-    
-    // API thống kê nâng cao
-    else if (url === '/api/stats/advanced') {
-        cors(200, {
-            predictor: {
-                txhuHistory: bot.txhu.history.slice(-20),
-                txmd5History: bot.md5.history.slice(-20)
-            },
-            betting: {
-                balance: '10,000,000',
-                winRate: '0%',
-                recentBets: []
-            }
-        });
-    }
-    
-    // API phân tích xúc xắc
-    else if (req.method === 'POST' && url === '/api/analyze-dice') {
-        let body = '';
-        req.on('data', c => body += c);
-        req.on('end', () => {
-            try {
-                const { dice1, dice2, dice3 } = JSON.parse(body);
-                const total = dice1 + dice2 + dice3;
-                const result = total >= 11 ? 'TÀI' : 'XIỦ';
-                const isTriple = (dice1 === dice2 && dice2 === dice3);
-                let pattern = 'HỖN HỢP';
-                if (isTriple) pattern = 'BÃO';
-                else if (dice1 === dice2 || dice2 === dice3 || dice1 === dice3) pattern = 'ĐÔI';
-                else if (dice1 + 1 === dice2 && dice2 + 1 === dice3) pattern = 'THẲNG';
-                else if (dice1 > 3 && dice2 > 3 && dice3 > 3) pattern = 'CAO';
-                else if (dice1 < 4 && dice2 < 4 && dice3 < 4) pattern = 'THẤP';
-                
-                cors(200, { total, result, pattern, isTriple });
-            } catch (e) {
-                cors(400, { error: e.message });
-            }
-        });
-    }
-    
     // Health check
     else if (url === '/health') {
-        cors(200, { 
-            status: 'ok', 
+        cors(200, {
+            status: 'ok',
             timestamp: Date.now(),
             bot: bot.isAlive ? 'running' : 'connecting',
             txhu_connected: !!bot.txhu.last_result,
-            txmd5_connected: !!bot.md5.last_result
+            txmd5_connected: !!bot.md5.last_result,
+            txhu_phienCuoi: bot.txhu.last_result?.phiên || null,
+            txmd5_phienCuoi: bot.md5.last_result?.phiên || null
         });
     }
     
-    // Dashboard chính
+    // Dashboard
     else if (url === '/' || url === '/index.html') {
-        cors(200, getDashboardHTML(), 'text/html');
+        cors(200, getDashboardHTML(bot), 'text/html');
     }
     
     else {
         cors(404, { 
             error: "Not Found",
-            message: "API không tồn tại. Các API có sẵn:",
-            apis: [
-                "/api/68gb/txhu",
-                "/api/68gb/history/txhu", 
-                "/api/68gb/txmd5",
-                "/api/68gb/history/txmd5",
-                "/api/du-doan",
-                "/api/thong-ke-von",
-                "/api/thong-ke-ai",
-                "/api/ket-qua-moi",
-                "/api/stats/advanced",
-                "/health"
+            message: "API không tồn tại",
+            available_apis: [
+                "/api/68gb/txhu - Kết quả TXHU mới nhất (có phiên trước)",
+                "/api/68gb/history/txhu - Lịch sử TXHU",
+                "/api/68gb/txmd5 - Kết quả TXMD5 mới nhất",
+                "/api/68gb/history/txmd5 - Lịch sử TXMD5",
+                "/api/du-doan - Dự đoán cho cả 2 game",
+                "/api/super-predict - Dự đoán siêu cấp chi tiết",
+                "/api/predict/txhu - Dự đoán riêng TXHU",
+                "/api/predict/txmd5 - Dự đoán riêng TXMD5",
+                "/api/stats - Thống kê",
+                "/api/token - Cập nhật token (POST)",
+                "/health - Kiểm tra sức khỏe"
             ]
         });
     }
@@ -378,13 +519,13 @@ const server = http.createServer((req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // DASHBOARD HTML
 // ═══════════════════════════════════════════════════════════════════════════
-function getDashboardHTML() {
+function getDashboardHTML(bot) {
     return `<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>68GB BOT - Trí Tuệ Nhân Tạo</title>
+    <title>68GB BOT - Dự Đoán Tài Xỉu AI</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -394,92 +535,183 @@ function getDashboardHTML() {
             min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
-        h1 { text-align: center; margin-bottom: 20px; font-size: 2.5rem; background: linear-gradient(135deg, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .status { text-align: center; margin-bottom: 30px; padding: 10px; border-radius: 50px; display: inline-block; width: auto; margin: 0 auto 30px; background: rgba(72,187,120,0.2); border: 1px solid #48bb78; color: #48bb78; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
-        .card { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 20px; backdrop-filter: blur(10px); }
-        .card h2 { margin-bottom: 15px; color: #f093fb; }
-        .result { font-size: 3rem; font-weight: bold; text-align: center; padding: 20px; border-radius: 15px; margin: 10px 0; }
+        .container { max-width: 1300px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 10px; font-size: 2rem; background: linear-gradient(135deg, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sub { text-align: center; margin-bottom: 30px; opacity: 0.7; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; }
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card h2 { margin-bottom: 20px; color: #f093fb; border-left: 3px solid #f093fb; padding-left: 15px; }
+        .result-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .phien {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #a0aec0;
+            margin-bottom: 10px;
+        }
+        .ketqua {
+            font-size: 3rem;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 15px;
+            display: inline-block;
+            min-width: 200px;
+        }
         .tai { background: linear-gradient(135deg, #f56565, #ed64a6); }
         .xiu { background: linear-gradient(135deg, #4299e1, #667eea); }
-        .dice { font-size: 1.2rem; text-align: center; margin: 10px 0; }
-        .phien { font-family: monospace; font-size: 0.9rem; opacity: 0.7; }
-        button { background: linear-gradient(135deg, #667eea, #764ba2); border: none; padding: 10px 20px; border-radius: 10px; color: white; cursor: pointer; margin: 5px; }
-        button:hover { transform: scale(1.05); }
-        .api-list { margin-top: 30px; text-align: center; }
+        .xucxac { font-size: 1.5rem; margin: 15px 0; letter-spacing: 10px; }
+        .du-doan-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .du-doan-title { color: #fbbf24; font-weight: bold; margin-bottom: 10px; }
+        .du-doan-ketqua { font-size: 2rem; font-weight: bold; display: inline-block; padding: 5px 20px; border-radius: 10px; margin: 10px 0; }
+        .tin-cay { 
+            background: #2d3748;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .tin-cay-fill { height: 100%; background: linear-gradient(90deg, #48bb78, #38b2ac); width: 0%; transition: width 0.5s; }
+        .lydo { font-size: 0.8rem; opacity: 0.8; margin-top: 10px; white-space: pre-line; }
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            padding: 10px 25px;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 1rem;
+        }
+        button:hover { transform: scale(1.02); }
+        .api-list { margin-top: 30px; text-align: center; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 15px; }
         .api-list a { color: #a0aec0; text-decoration: none; margin: 0 10px; font-size: 0.8rem; }
         .api-list a:hover { color: #f093fb; }
+        .live { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #48bb78; margin-right: 8px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
         footer { text-align: center; margin-top: 40px; opacity: 0.5; font-size: 0.8rem; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-        .live { animation: pulse 2s infinite; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #48bb78; margin-right: 8px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎲 68GB SIÊU BOT 🎲</h1>
-        <div style="text-align: center;">
-            <div class="status"><span class="live"></span> BOT ĐANG HOẠT ĐỘNG</div>
-        </div>
+        <h1>🎲 68GB SIÊU BOT - DỰ ĐOÁN AI 🎲</h1>
+        <div class="sub"><span class="live"></span> Hệ thống dự đoán Tài Xỉu bằng Trí tuệ Nhân tạo</div>
         
         <div class="grid">
+            <!-- TXHU CARD -->
             <div class="card">
                 <h2>🎯 TÀI XỈU HŨ</h2>
-                <div id="txhu-result" class="result">ĐANG TẢI...</div>
-                <div id="txhu-dice" class="dice">---</div>
-                <div id="txhu-phien" class="phien">Phiên: ---</div>
+                <div class="result-box">
+                    <div class="phien" id="txhu-phien">Phiên: ---</div>
+                    <div class="ketqua" id="txhu-ketqua">---</div>
+                    <div class="xucxac" id="txhu-xucxac">⚀ ⚀ ⚀</div>
+                </div>
+                <div class="du-doan-box">
+                    <div class="du-doan-title">🤖 DỰ ĐOÁN PHIÊN TIẾP THEO</div>
+                    <div class="du-doan-ketqua" id="txhu-dudoan">---</div>
+                    <div class="tin-cay"><div class="tin-cay-fill" id="txhu-tincay"></div></div>
+                    <div class="lydo" id="txhu-lydo"></div>
+                </div>
             </div>
             
+            <!-- TXMD5 CARD -->
             <div class="card">
                 <h2>🔐 TÀI XỈU MD5</h2>
-                <div id="md5-result" class="result">ĐANG TẢI...</div>
-                <div id="md5-dice" class="dice">---</div>
-                <div id="md5-phien" class="phien">Phiên: ---</div>
+                <div class="result-box">
+                    <div class="phien" id="md5-phien">Phiên: ---</div>
+                    <div class="ketqua" id="md5-ketqua">---</div>
+                    <div class="xucxac" id="md5-xucxac">⚀ ⚀ ⚀</div>
+                </div>
+                <div class="du-doan-box">
+                    <div class="du-doan-title">🤖 DỰ ĐOÁN PHIÊN TIẾP THEO</div>
+                    <div class="du-doan-ketqua" id="md5-dudoan">---</div>
+                    <div class="tin-cay"><div class="tin-cay-fill" id="md5-tincay"></div></div>
+                    <div class="lydo" id="md5-lydo"></div>
+                </div>
             </div>
         </div>
         
-        <div style="text-align: center; margin-top: 30px;">
-            <button onclick="location.reload()">🔄 LÀM MỚI</button>
+        <div style="text-align: center;">
+            <button onclick="location.reload()">🔄 LÀM MỚI DỮ LIỆU</button>
         </div>
         
         <div class="api-list">
-            <h3>📡 API CÓ SẴN</h3>
-            <a href="/api/68gb/txhu">/api/68gb/txhu</a>
-            <a href="/api/68gb/history/txhu">/api/68gb/history/txhu</a>
-            <a href="/api/68gb/txmd5">/api/68gb/txmd5</a>
-            <a href="/api/68gb/history/txmd5">/api/68gb/history/txmd5</a>
-            <a href="/api/du-doan">/api/du-doan</a>
-            <a href="/api/health">/api/health</a>
+            <strong>📡 API CÓ SẴN</strong><br>
+            <a href="/api/68gb/txhu">📊 Kết quả TXHU</a>
+            <a href="/api/68gb/txmd5">📊 Kết quả TXMD5</a>
+            <a href="/api/du-doan">🎯 Dự đoán</a>
+            <a href="/api/super-predict">⚡ Dự đoán siêu cấp</a>
+            <a href="/api/stats">📈 Thống kê</a>
+            <a href="/health">💚 Health</a>
         </div>
         
         <footer>
-            🤖 Phiên bản 5.0 | Trí tuệ nhân tạo | Tối ưu cho Render
+            🤖 Phiên bản 5.0 | Thuật toán Markov Chain + Nhận diện cầu | Tối ưu cho Render
         </footer>
     </div>
     
     <script>
         async function loadData() {
             try {
-                const [txhu, md5] = await Promise.all([
-                    fetch('/api/68gb/txhu').then(r => r.json()),
-                    fetch('/api/68gb/txmd5').then(r => r.json())
-                ]);
+                // Gọi API dự đoán siêu cấp
+                const predictRes = await fetch('/api/super-predict');
+                const data = await predictRes.json();
                 
-                if (!txhu.error) {
-                    document.getElementById('txhu-result').innerHTML = txhu['kết quả'] || '???';
-                    document.getElementById('txhu-result').className = 'result ' + (txhu['kết quả'] === 'TÀI' ? 'tai' : 'xiu');
-                    document.getElementById('txhu-dice').innerHTML = \`\${txhu['xúc xắc 1'] || '?'} - \${txhu['xúc xắc 2'] || '?'} - \${txhu['xúc xắc 3'] || '?'}\`;
-                    document.getElementById('txhu-phien').innerHTML = \`Phiên: #\${txhu['Phiên trước'] || '???'}\`;
+                // Cập nhật TXHU
+                if (data.txhu) {
+                    // Kết quả hiện tại
+                    if (data.txhu.phienTruoc) {
+                        document.getElementById('txhu-phien').innerHTML = \`Phiên: #\${data.txhu.phienTruoc['Phiên trước'] || '???'}\`;
+                        document.getElementById('txhu-ketqua').innerHTML = data.txhu.phienTruoc['kết quả'] || '???';
+                        document.getElementById('txhu-ketqua').className = \`ketqua \${data.txhu.phienTruoc['kết quả'] === 'TÀI' ? 'tai' : 'xiu'}\`;
+                        const d1 = data.txhu.phienTruoc['xúc xắc 1'] || '?';
+                        const d2 = data.txhu.phienTruoc['xúc xắc 2'] || '?';
+                        const d3 = data.txhu.phienTruoc['xúc xắc 3'] || '?';
+                        document.getElementById('txhu-xucxac').innerHTML = \`🎲 \${d1} - \${d2} - \${d3}\`;
+                    }
+                    
+                    // Dự đoán
+                    document.getElementById('txhu-dudoan').innerHTML = data.txhu.duDoan || 'TÀI';
+                    document.getElementById('txhu-dudoan').className = \`du-doan-ketqua \${data.txhu.duDoan === 'TÀI' ? 'tai' : 'xiu'}\`;
+                    document.getElementById('txhu-tincay').style.width = (data.txhu.doTinCay || 60) + '%';
+                    document.getElementById('txhu-lydo').innerHTML = (data.txhu.lyDo || 'Đang phân tích...').replace(/\\n/g, '<br>');
                 }
                 
-                if (!md5.error) {
-                    document.getElementById('md5-result').innerHTML = md5['kết quả'] || '???';
-                    document.getElementById('md5-result').className = 'result ' + (md5['kết quả'] === 'TÀI' ? 'tai' : 'xiu');
-                    document.getElementById('md5-dice').innerHTML = \`\${md5['xúc xắc 1'] || '?'} - \${md5['xúc xắc 2'] || '?'} - \${md5['xúc xắc 3'] || '?'}\`;
-                    document.getElementById('md5-phien').innerHTML = \`Phiên: #\${md5['Phiên trước'] || '???'}\`;
+                // Cập nhật TXMD5
+                if (data.txmd5) {
+                    if (data.txmd5.phienTruoc) {
+                        document.getElementById('md5-phien').innerHTML = \`Phiên: #\${data.txmd5.phienTruoc['Phiên trước'] || '???'}\`;
+                        document.getElementById('md5-ketqua').innerHTML = data.txmd5.phienTruoc['kết quả'] || '???';
+                        document.getElementById('md5-ketqua').className = \`ketqua \${data.txmd5.phienTruoc['kết quả'] === 'TÀI' ? 'tai' : 'xiu'}\`;
+                        const d1 = data.txmd5.phienTruoc['xúc xắc 1'] || '?';
+                        const d2 = data.txmd5.phienTruoc['xúc xắc 2'] || '?';
+                        const d3 = data.txmd5.phienTruoc['xúc xắc 3'] || '?';
+                        document.getElementById('md5-xucxac').innerHTML = \`🎲 \${d1} - \${d2} - \${d3}\`;
+                    }
+                    
+                    document.getElementById('md5-dudoan').innerHTML = data.txmd5.duDoan || 'TÀI';
+                    document.getElementById('md5-dudoan').className = \`du-doan-ketqua \${data.txmd5.duDoan === 'TÀI' ? 'tai' : 'xiu'}\`;
+                    document.getElementById('md5-tincay').style.width = (data.txmd5.doTinCay || 60) + '%';
+                    document.getElementById('md5-lydo').innerHTML = (data.txmd5.lyDo || 'Đang phân tích...').replace(/\\n/g, '<br>');
                 }
             } catch(e) {
-                console.error('Lỗi:', e);
+                console.error('Lỗi tải dữ liệu:', e);
             }
         }
         
@@ -491,29 +723,28 @@ function getDashboardHTML() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// KHỞI ĐỘNG SERVER VÀ BOT
+// KHỞI ĐỘNG
 // ═══════════════════════════════════════════════════════════════════════════
 server.listen(CONFIG.PORT, '0.0.0.0', () => {
     console.log(`
-╔════════════════════════════════════════════════════════════════╗
-║                                                                ║
-║     🚀 68GB BOT - ĐANG CHẠY TRÊN PORT ${CONFIG.PORT} 🚀          ║
-║                                                                ║
-╠════════════════════════════════════════════════════════════════╣
-║  📡 API Endpoints:                                             ║
-║     GET  /api/68gb/txhu       → Kết quả TXHU mới nhất         ║
-║     GET  /api/68gb/txmd5      → Kết quả TXMD5 mới nhất        ║
-║     GET  /api/history         → Lịch sử TXMD5                 ║
-║     GET  /api/du-doan         → Dự đoán AI                    ║
-║     GET  /api/health          → Kiểm tra sức khỏe             ║
-║     POST /api/token           → Cập nhật token mới            ║
-║                                                                ║
-║  🌐 Dashboard: http://localhost:${CONFIG.PORT}                      ║
-║  🤖 Bot Status: ĐANG KẾT NỐI WEBSOCKET...                      ║
-║                                                                ║
-╚════════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║     🚀 68GB SIÊU BOT - ĐÃ SẴN SÀNG TRÊN PORT ${CONFIG.PORT} 🚀               ║
+║                                                                            ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  📡 API:                                                                  ║
+║     🎯 /api/68gb/txhu        → Kết quả TXHU (Có phiên trước)             ║
+║     🎯 /api/68gb/txmd5       → Kết quả TXMD5 (Có phiên trước)            ║
+║     🤖 /api/du-doan          → Dự đoán cho cả 2 game                      ║
+║     ⚡ /api/super-predict    → Dự đoán siêu cấp chi tiết                  ║
+║     📊 /api/stats            → Thống kê                                   ║
+║     💚 /health               → Kiểm tra sức khỏe                          ║
+║                                                                            ║
+║  🌐 DASHBOARD: http://localhost:${CONFIG.PORT}                                ║
+║  🤖 BOT: ${bot.isAlive ? '🟢 ĐANG CHẠY' : '🟡 ĐANG KẾT NỐI'}                                      ║
+║                                                                            ║
+╚══════════════════════════════════════════════════════════════════════════╝
     `);
     
-    // Khởi động bot
     bot.run(CONFIG.LANDING_URL);
 });
