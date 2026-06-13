@@ -1,15 +1,28 @@
 {
-  "name": "68gb-sieu-bot",
-  "version": "5.0.0",
-  "description": "Siêu Bot 68GB với AI dự đoán Tài Xỉu - Phiên bản tiếng Việt",
-  "main": "super_bot.js",
+  "name": "tai-xiu-prediction-api",
+  "version": "3.0.0",
+  "description": "Advanced Tai Xiu Prediction API with Self-Learning",
+  "main": "index.js",
   "scripts": {
-    "start": "node super_bot.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
-    "ws": "^8.14.2"
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "nodemon": "^3.0.1"
   },
+  "keywords": [
+    "tai-xiu",
+    "prediction",
+    "api",
+    "self-learning",
+    "pattern-recognition"
+  ],
+  "author": "@tranhoang2286",
+  "license": "MIT",
   "engines": {
-    "node": ">=18.x"
+    "node": ">=14.0.0"
   }
 }
